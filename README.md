@@ -1,4 +1,5 @@
 oda
 ===
 
-Orthogonal Data Augmentation R Package
+Orthogonal Data Augmentation R Package.
+...
