@@ -12,6 +12,7 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	int no=rxo.nrow();
 	int na=rxa.ncol();
 	int t=1;
+	double anneal;
 	double a=(no-3)/2;
 	double b;
 	double delta;
@@ -70,55 +71,59 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 
 	//Initialize Parameters at MLE//
 	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
-	
+
 	//Pre-Gibbs Computations Needn't Be Computed Every Iteration//
 	Lam=diagmat(lam);
-	for (int i = 0; i < p; ++i)
-	{
-		priorodds(i)=priorprob(i)/(1-priorprob(i));
-		ldl(i)=sqrt(lam(i)/(d(i)+lam(i)));
-		dli(i)=1/(d(i)+lam(i));
-	}
+	for(int anneal_steps=0; anneal_steps <= 100; anneal_steps++){
+		anneal=(double)anneal_steps/100;  
 
-	//Run EM//
-	phi_trace(0)=phi;
-	ya_trace.col(0)=ya;
-	prob_trace.col(0)=prob;
-	do{
-		//Probability Expectation Step//
-		for (int i = 0; i < p; i++)
+		for (int i = 0; i < p; ++i)
 		{
-			Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),ya));
-			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*(d(i)*d(i)*Bols(i)*Bols(i)));
-			prob(i)=odds(i)/(1+odds(i));
+			priorodds(i)=priorprob(i)/(1-priorprob(i));
+			ldl(i)=pow(lam(i)/(d(i)+lam(i)),0.5*anneal);
+			dli(i)=1/(d(i)+lam(i));
 		}
-		P.diag()=prob;
 
-		//Phi Maximization Step//
-		A=Inc-xc*P*xcxcLami*xc.t();
-		Aoo=A.submat(0,0,no-1,no-1)-P1;
-		Aaa=A.submat(no,no,no+na-1,no+na-1);
-		Aoa=A.submat(0,no,no-1,no+na-1);
-		Aao=A.submat(no,0,no+na-1,no-1);
-		//Aoo=Ino-P1+xo*Q*xo.t();
-		//Aaa=Ina-xa*Q*xa.t();
-		//Aoa=-xo*Q*xa.t();
-		//Aao=-xa*Q*xo.t();
-		Aooa=Aoo-Aoa*Aaa.i()*Aao;
-		b=0.5*(dot(yo,Aooa*yo));
-		phi=((double)a)/b;
+		//Run EM//
+		phi_trace(0)=phi;
+		ya_trace.col(0)=ya;
+		prob_trace.col(0)=prob;
+		do{
+			//Probability Expectation Step//
+			for (int i = 0; i < p; i++)
+			{
+				Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),ya));
+				odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*anneal*phi*dli(i)*(d(i)*d(i)*Bols(i)*Bols(i)));
+				prob(i)=odds(i)/(1+odds(i));
+			}
+			P.diag()=prob;
 
-		//Ya Maximization Step//
-		ya=-solve(Aaa,Aao*yo);
+			//Phi Maximization Step//
+			A=Inc-xc*P*xcxcLami*xc.t();
+			Aoo=A.submat(0,0,no-1,no-1)-P1;
+			Aaa=A.submat(no,no,no+na-1,no+na-1);
+			Aoa=A.submat(0,no,no-1,no+na-1);
+			Aao=A.submat(no,0,no+na-1,no-1);
+			//Aoo=Ino-P1+xo*Q*xo.t();
+			//Aaa=Ina-xa*Q*xa.t();
+			//Aoa=-xo*Q*xa.t();
+			//Aao=-xa*Q*xo.t();
+			Aooa=Aoo-Aoa*Aaa.i()*Aao;
+			b=0.5*(dot(yo,Aooa*yo));
+			phi=((double)a)/b;
 
-		//Store Values//
-		prob_trace.col(t)=prob;
-		ya_trace.col(t)=ya;
-		phi_trace(t)=phi;
+			//Ya Maximization Step//
+			ya=-solve(Aaa,Aao*yo);
 
-		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
-		t=t+1;
-	} while(delta>0.00001);
+			//Store Values//
+			prob_trace.col(t)=prob;
+			ya_trace.col(t)=ya;
+			phi_trace(t)=phi;
+
+			delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
+			t=t+1;
+		} while(delta>0.00001);
+	};
 
 	phi_trace.resize(t);
 	ya_trace.resize(p,t);
