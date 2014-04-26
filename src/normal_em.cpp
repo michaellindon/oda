@@ -111,8 +111,8 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		t=t+1;
 	} while(delta>0.00001);
 
-	gamma_trace=resize(gamma_trace,p,t);
-	prob_trace=resize(prob_trace,p,t);
+	gamma_trace.resize(p,t);
+	prob_trace.resize(p,t);
 
 	return Rcpp::List::create(
 			Rcpp::Named("prob") = prob,
