@@ -109,7 +109,7 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 		phi=((double)a)/b;
 
 		//Ya Maximization Step//
-		ya=-Aaa.i()*Aao*yo;
+		ya=-solve(Aaa,Aao*yo);
 
 		//Store Values//
 		prob_trace.col(t)=prob;
