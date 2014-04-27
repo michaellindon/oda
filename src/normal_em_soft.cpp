@@ -70,7 +70,7 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	Px=xo*(xoxo).i()*xo.t();
 
 	//Initialize Parameters at MLE//
-	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
+	phi=1;
 
 	//Pre-Gibbs Computations Needn't Be Computed Every Iteration//
 	Lam=diagmat(lam);
