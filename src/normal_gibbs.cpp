@@ -64,6 +64,10 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	xaxa=xa.t()*xa;
 	D=xaxa+xoxo;
 	d=D.diag();
+    Lam=diagmat(lam);
+  priorodds=priorprob/(1-priorprob);
+  ldl=sqrt(lam/(d+lam));
+	dli=1/(d+lam);
 
 
 	//Initialize Parameters at MLE//
@@ -72,16 +76,6 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
 	Bols=(xoxo).i()*xo.t()*yo;
 	ya=xa*Bols;
-
-
-	//Pre-Gibbs Computations Needn't Be Computed Every Iteration//
-	Lam=diagmat(lam);
-	for (int i = 0; i < p; ++i)
-	{
-		priorodds(i)=priorprob(i)/(1-priorprob(i));
-		ldl(i)=sqrt(lam(i)/(d(i)+lam(i)));
-		dli(i)=1/(d(i)+lam(i));
-	}
 
 
 	//Run Gibbs Sampler//
