@@ -108,37 +108,25 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		for (int i = 0; i < na; ++i) Z(i)=R::rnorm(0,1);
 		ya=mu+L.t()*Z;
 
-
+		Bols=(1/d)%(xoyo+xa.t()*ya);
+		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
+		prob=odds/(1+odds);
 		for (int i = 0; i < p; ++i)
 		{
-			Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),ya));
-			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
-			prob(i)=odds(i)/(1+odds(i));
-
-			//Draw Gamma//
+			//Draw Gamma, Beta, lambda//
 			if(R::runif(0,1)<prob(i)){
 				gamma(i)=1;
-			}else{
-				gamma(i)=0;
-			}
-
-			//Draw Beta and lambda//
-			if (gamma(i)==1)
-			{
 				Z(i)=R::rnorm(0,1);
 				B(i)=dli(i)*d(i)*Bols(i)+sqrt(dli(i)/phi)*Z(i);
 				lam(i)=R::rgamma(0.5*(alpha+1),2/(alpha+phi*B(i)*B(i))); //rgamma uses scale
-
 			}else{
+				gamma(i)=0;
 				B(i)=0;
 				lam(i)=R::rgamma(0.5*alpha,2/alpha); //rgamma uses scale
 			}
-
-			ldl(i)=sqrt(lam(i)/(d(i)+lam(i)));
-			dli(i)=1/(d(i)+lam(i));
 		}
-
-
+		ldl=sqrt(lam/(d+lam));
+		dli=1/(d+lam);
 
 		//Store Draws//
 		lam_mcmc.col(t)=lam;
