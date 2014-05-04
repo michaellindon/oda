@@ -38,6 +38,7 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	Col<double> mu(na);
 	Col<double> ya(na);
 	Col<double> Z(na);
+	Col<double> U(p);
 	Col<double> d(p);
 	Col<double> Bols(p);
 	Col<double> xoyo(p);
@@ -64,9 +65,9 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	xaxa=xa.t()*xa;
 	D=xaxa+xoxo;
 	d=D.diag();
-    Lam=diagmat(lam);
-  priorodds=priorprob/(1-priorprob);
-  ldl=sqrt(lam/(d+lam));
+	Lam=diagmat(lam);
+	priorodds=priorprob/(1-priorprob);
+	ldl=sqrt(lam/(d+lam));
 	dli=1/(d+lam);
 
 
@@ -76,13 +77,13 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
 	Bols=(xoxo).i()*xo.t()*yo;
 	ya=xa*Bols;
-
-
-	//Run Gibbs Sampler//
 	ya_mcmc.col(0)=ya;
 	phi_mcmc(0)=phi;
 	gamma_mcmc.col(0)=gamma;
 	prob_mcmc.col(0)=prob;
+
+
+	//Run Gibbs Sampler//
 	for (int t = 1; t < niter; ++t)
 	{
 		//Form Submatrices
@@ -104,14 +105,15 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 		for (int i = 0; i < na; ++i) Z(i)=R::rnorm(0,1);
 		ya=mu+L.t()*Z;
 
+		Bols=(1/d)%(xoyo+xa.t()*ya);
+		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
+		prob=odds/(1+odds);
+
 		//Draw Gamma//
+		for (int i = 0; i < p; ++i) U(i)=R::runif(0,1);
 		for (int i = 0; i < p; ++i)
 		{
-			Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),ya));
-			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
-			prob(i)=odds(i)/(1+odds(i));
-
-			if(R::runif(0,1)<prob(i)){
+			if(U(i)<prob(i)){
 				gamma(i)=1;
 			}else{
 				gamma(i)=0;
