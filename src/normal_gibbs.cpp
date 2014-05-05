@@ -12,7 +12,7 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	int burnin=Rcpp::as<int >(rburnin);
 	int p=rxo.ncol();
 	int no=rxo.nrow();
-	int na=rxa.ncol();
+	int na=rxa.nrow();
 	double a=(no-1)/2;
 	double b;
 	double phi;
