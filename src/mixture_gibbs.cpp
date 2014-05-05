@@ -114,6 +114,7 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		for (int i = 0; i < p; ++i)
 		{
 			//Draw Gamma, Beta, lambda//
+			if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
 			if(R::runif(0,1)<prob(i)){
 				gamma(i)=1;
 				Z(i)=R::rnorm(0,1);

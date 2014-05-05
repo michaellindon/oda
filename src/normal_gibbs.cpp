@@ -113,6 +113,7 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 		for (int i = 0; i < p; ++i) U(i)=R::runif(0,1);
 		for (int i = 0; i < p; ++i)
 		{
+			if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
 			if(U(i)<prob(i)){
 				gamma(i)=1;
 			}else{
