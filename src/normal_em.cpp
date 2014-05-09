@@ -27,8 +27,8 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Mat<double> Ino=eye(no,no);
 	Mat<double> Ina=eye(na,na);
 	Mat<double> P1(no,no);
-	Mat<double> prob_trace(p,1000000,fill::zeros);
-	Mat<uword>  gamma_trace(p,1000000,fill::ones);
+	Mat<double> prob_trace(p,1000,fill::zeros);
+	Mat<uword>  gamma_trace(p,1000,fill::ones);
 	Col<double> one(no,fill::ones);
 	Col<double> mu(na);
 	Col<double> ya(na);
@@ -57,15 +57,14 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	D=xaxa+xoxo;
 	d=D.diag();
 	P1=one*(one.t()*one).i()*one.t();
-
-	//Pre-Gibbs Computations Needn't Be Computed Every Iteration//
+	prob=priorprob;
 	Lam=diagmat(lam);
-	for (int i = 0; i < p; ++i)
-	{
-		priorodds(i)=priorprob(i)/(1-priorprob(i));
-		ldl(i)=sqrt(lam(i)/(d(i)+lam(i)));
-		dli(i)=1/(d(i)+lam(i));
-	}
+	priorodds=priorprob/(1-priorprob);
+	ldl=sqrt(lam/(d+lam));
+	dli=1/(d+lam);
+
+	//Randomize Initial Gammas//
+	for (int i = 0; i < p; ++i) if(R::runif(0,1)>0.5) gamma(i)=1;
 
 	//Run Gibbs Sampler//
 	gamma_trace.col(0)=gamma;

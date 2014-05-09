@@ -10,9 +10,8 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
-	int na=rxa.ncol();
+	int na=rxa.nrow();
 	int t=1;
-	double anneal;
 	double a=(no-3)/2;
 	double b;
 	double delta;
@@ -34,11 +33,10 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	Mat<double> Ina=eye(na,na);
 	Mat<double> Inc=eye(no+na,no+na);
 	Mat<double> P1(no,no);
-	Mat<double> Px(no,no);
 	Mat<double> P=eye(p,p);
-	Mat<double> prob_trace(p,1000000,fill::zeros);
-	Mat<double> ya_trace(p,1000000,fill::ones);
-	Col<double> phi_trace(100000,fill::ones);
+	Mat<double> prob_trace(p,1000,fill::zeros);
+	Mat<double> ya_trace(p,1000,fill::ones);
+	Col<double> phi_trace(1000,fill::ones);
 	Col<double> one(no,fill::ones);
 	Col<double> mu(na);
 	Col<double> ya(na,fill::zeros);
@@ -66,67 +64,57 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	D=xaxa+xoxo;
 	d=D.diag();
 	xcxcLami=diagmat(1/(d+lam));
-	P1=one*(one.t()*one).i()*one.t();
-	Px=xo*(xoxo).i()*xo.t();
-
-	//Initialize Parameters at MLE//
-	phi=1;
-
-	//Pre-Gibbs Computations Needn't Be Computed Every Iteration//
 	Lam=diagmat(lam);
-	for(int anneal_steps=0; anneal_steps <= 100; anneal_steps++){
-		anneal=(double)anneal_steps/100;  
+	priorodds=priorprob/(1-priorprob);
+	ldl=sqrt(lam/(d+lam));
+	dli=1/(d+lam);
+	P1=one*(one.t()*one).i()*one.t();
 
-		for (int i = 0; i < p; ++i)
+	//Randomize Initial Probabilities//
+	for (int i = 0; i < p; ++i) prob(i)=R::runif(0,1);
+
+	//Run EM//
+	prob_trace.col(0)=prob;
+	P.diag()=prob;
+
+	do{
+		//Phi Maximization Step//
+		A=Inc-xc*P*xcxcLami*xc.t();
+		Aoo=A.submat(0,0,no-1,no-1)-P1;
+		Aaa=A.submat(no,no,no+na-1,no+na-1);
+		Aoa=A.submat(0,no,no-1,no+na-1);
+		Aao=A.submat(no,0,no+na-1,no-1);
+		//Aoo=Ino-P1+xo*Q*xo.t();
+		//Aaa=Ina-xa*Q*xa.t();
+		//Aoa=-xo*Q*xa.t();
+		//Aao=-xa*Q*xo.t();
+		Aooa=Aoo-Aoa*Aaa.i()*Aao;
+		b=0.5*(dot(yo,Aooa*yo));
+		phi=((double)a)/b;
+
+		//Ya Maximization Step//
+		ya=-solve(Aaa,Aao*yo);
+
+		//Probability Expectation Step//
+		for (int i = 0; i < p; i++)
 		{
-			priorodds(i)=priorprob(i)/(1-priorprob(i));
-			ldl(i)=pow(lam(i)/(d(i)+lam(i)),0.5*anneal);
-			dli(i)=1/(d(i)+lam(i));
+			Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),ya));
+			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*(d(i)*d(i)*Bols(i)*Bols(i)));
+			prob(i)=odds(i)/(1+odds(i));
 		}
+		P.diag()=prob;
 
-		//Run EM//
-		phi_trace(0)=phi;
-		ya_trace.col(0)=ya;
-		prob_trace.col(0)=prob;
-		do{
-			//Probability Expectation Step//
-			for (int i = 0; i < p; i++)
-			{
-				Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),ya));
-				odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*anneal*phi*dli(i)*(d(i)*d(i)*Bols(i)*Bols(i)));
-				prob(i)=odds(i)/(1+odds(i));
-			}
-			P.diag()=prob;
+		//Store Values//
+		prob_trace.col(t)=prob;
+		ya_trace.col(t-1)=ya;
+		phi_trace(t-1)=phi;
 
-			//Phi Maximization Step//
-			A=Inc-xc*P*xcxcLami*xc.t();
-			Aoo=A.submat(0,0,no-1,no-1)-P1;
-			Aaa=A.submat(no,no,no+na-1,no+na-1);
-			Aoa=A.submat(0,no,no-1,no+na-1);
-			Aao=A.submat(no,0,no+na-1,no-1);
-			//Aoo=Ino-P1+xo*Q*xo.t();
-			//Aaa=Ina-xa*Q*xa.t();
-			//Aoa=-xo*Q*xa.t();
-			//Aao=-xa*Q*xo.t();
-			Aooa=Aoo-Aoa*Aaa.i()*Aao;
-			b=0.5*(dot(yo,Aooa*yo));
-			phi=((double)a)/b;
+		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
+		t=t+1;
+	} while(delta>0.00001);
 
-			//Ya Maximization Step//
-			ya=-solve(Aaa,Aao*yo);
-
-			//Store Values//
-			prob_trace.col(t)=prob;
-			ya_trace.col(t)=ya;
-			phi_trace(t)=phi;
-
-			delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
-			t=t+1;
-		} while(delta>0.00001);
-	};
-
-	phi_trace.resize(t);
-	ya_trace.resize(p,t);
+	phi_trace.resize(t-1);
+	ya_trace.resize(p,t-1);
 	prob_trace.resize(p,t);
 
 	return Rcpp::List::create(
