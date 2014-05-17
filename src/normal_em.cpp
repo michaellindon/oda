@@ -10,7 +10,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
-	int na=rxa.ncol();
+	int na=rxa.nrow();
 	int t=1;
 	double a=(no-1)/2;
 	double b;

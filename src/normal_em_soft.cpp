@@ -32,10 +32,10 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	Mat<double> Ino=eye(no,no);
 	Mat<double> Ina=eye(na,na);
 	Mat<double> Inc=eye(no+na,no+na);
-	Mat<double> P1(no,no);
 	Mat<double> P=eye(p,p);
-	Mat<double> prob_trace(p,1000,fill::zeros);
+	Mat<double> P1(no,no);
 	Mat<double> ya_trace(p,1000,fill::ones);
+	Mat<double> prob_trace(p,1000,fill::zeros);
 	Col<double> phi_trace(1000,fill::ones);
 	Col<double> one(no,fill::ones);
 	Col<double> mu(na);
@@ -72,11 +72,10 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 
 	//Randomize Initial Probabilities//
 	for (int i = 0; i < p; ++i) prob(i)=R::runif(0,1);
+	P.diag()=prob;
 
 	//Run EM//
 	prob_trace.col(0)=prob;
-	P.diag()=prob;
-
 	do{
 		//Phi Maximization Step//
 		A=Inc-xc*P*xcxcLami*xc.t();
@@ -84,10 +83,6 @@ List normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 		Aaa=A.submat(no,no,no+na-1,no+na-1);
 		Aoa=A.submat(0,no,no-1,no+na-1);
 		Aao=A.submat(no,0,no+na-1,no-1);
-		//Aoo=Ino-P1+xo*Q*xo.t();
-		//Aaa=Ina-xa*Q*xa.t();
-		//Aoa=-xo*Q*xa.t();
-		//Aao=-xa*Q*xo.t();
 		Aooa=Aoo-Aoa*Aaa.i()*Aao;
 		b=0.5*(dot(yo,Aooa*yo));
 		phi=((double)a)/b;
