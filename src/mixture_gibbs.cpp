@@ -5,7 +5,7 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP ralpha){
+List col_mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP ralpha){
 
 	//Define Variables//
 	int niter=Rcpp::as<int >(rniter);
@@ -42,7 +42,7 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	Col<double> ya(na);
 	Col<double> Z(na);
 	Col<double> d(p);
-	Col<double> Bols(p);
+	Col<double> Bols(p,fill::zeros);
 	Col<double> B(p);
 	Col<double> xoyo(p);
 	Col<double> prob(p,fill::ones);
@@ -75,9 +75,10 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 
 	//Initialize Parameters at MLE//
 	P1=one*(one.t()*one).i()*one.t();
-	Px=xo*(xoxo).i()*xo.t();
-	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
-	Bols=(xoxo).i()*xo.t()*yo;
+//	Px=xo*(xoxo).i()*xo.t();
+	//phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
+  phi=1;
+//	Bols=(xoxo).i()*xo.t()*yo;
 	ya=xa*Bols;
 
 	//Run Gibbs Sampler//
@@ -87,7 +88,6 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	prob_mcmc.col(0)=prob;
 	for (int t = 1; t < niter; ++t)
 	{
-
 		//Form Submatrices
 		inc_indices=find(gamma);
 		Lam=diagmat(lam);

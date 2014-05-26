@@ -5,7 +5,7 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter){
+List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter){
 
 	//Define Variables//
 	int niter=Rcpp::as<int >(rniter);
@@ -40,7 +40,7 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	Col<double> Z(na);
 	Col<double> U(p);
 	Col<double> d(p);
-	Col<double> Bols(p);
+	Col<double> Bols(p,fill::zeros);
 	Col<double> xoyo(p);
 	Col<double> prob(p,fill::ones);
 	Col<double> priorodds(p);
@@ -73,9 +73,10 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 
 	//Initialize Parameters at MLE//
 	P1=one*(one.t()*one).i()*one.t();
-	Px=xo*(xoxo).i()*xo.t();
-	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
-	Bols=(xoxo).i()*xo.t()*yo;
+//	Px=xo*(xoxo).i()*xo.t();
+//	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
+phi=1;
+//	Bols=(xoxo).i()*xo.t()*yo;
 	ya=xa*Bols;
 	ya_mcmc.col(0)=ya;
 	phi_mcmc(0)=phi;
