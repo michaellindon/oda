@@ -62,6 +62,7 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	xaxa=xa.t()*xa;
 	D=xaxa+xoxo;
 	d=D.diag();
+	D=diagmat(d);
 	xcxcLami=diagmat(1/(d+lam));
 	Lam=diagmat(lam);
 	priorodds=priorprob/(1-priorprob);
@@ -69,16 +70,35 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	dli=1/(d+lam);
 	P1=one*(one.t()*one).i()*one.t();
 
-	//Randomize Initial Probabilities//
+	//Randomize Initial Values//
 	for (int i = 0; i < p; ++i) prob(i)=R::runif(0,1);
-	P.diag()=prob;
+	P=diagmat(prob);
+	A=Inc-xc*P*xcxcLami*xc.t();
+	Aoo=A.submat(0,0,no-1,no-1)-P1;
+	Aaa=A.submat(no,no,no+na-1,no+na-1);
+	Aoa=A.submat(0,no,no-1,no+na-1);
+	Aao=A.submat(no,0,no+na-1,no-1);
+	Aaai=inv_sympd(Aaa);
+	Aooa=Aoo-Aoa*Aaai*Aao;
+	b=0.5*(dot(yo,Aooa*yo));
+	phi=((double)a)/b;
+	mu=-Aaai*Aao*yo;
 
 	//Run Variational//
 	prob_trace.col(0)=prob;
 	mu_trace.col(0)=mu;
 	b_trace(0)=b;
 	do{
-		//Phi Maximization Step//
+		//Probability Step//
+		for (int i = 0; i < p; i++)
+		{
+			Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),mu));
+			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i)+0.5*dli(i)*dot(xa.col(i),Aaai*xa.col(i)) );
+			prob(i)=odds(i)/(1+odds(i));
+		}
+		P=diagmat(prob);
+
+		//Phi Step//
 		A=Inc-xc*P*xcxcLami*xc.t();
 		Aoo=A.submat(0,0,no-1,no-1)-P1;
 		Aaa=A.submat(no,no,no+na-1,no+na-1);
@@ -89,17 +109,8 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 		b=0.5*(dot(yo,Aooa*yo));
 		phi=((double)a)/b;
 
-		//Ya Maximization Step//
+		//Ya Step//
 		mu=-Aaai*Aao*yo;
-
-		//Probability Step//
-		for (int i = 0; i < p; i++)
-		{
-			Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),mu));
-			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i)+0.5*dli(i)*dot(xa.col(i),Aaai*xa.col(i)) );
-			prob(i)=odds(i)/(1+odds(i));
-		}
-		P.diag()=prob;
 
 		//Store Values//
 		prob_trace.col(t)=prob;
