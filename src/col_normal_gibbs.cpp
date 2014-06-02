@@ -13,7 +13,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
-	double a=(no-1)/2;
+	double a=(double)0.5*(no-1);
 	double b;
 	double phi;
 	Mat<double> xag;

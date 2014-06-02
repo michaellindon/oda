@@ -12,7 +12,7 @@ List col_normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa,
 	int no=rxo.nrow();
 	int na=rxa.nrow();
 	int t=1;
-	double a=(no-3)/2;
+	double a=(double)0.5*(no-3);
 	double b;
 	double delta;
 	double phi=1;
@@ -106,7 +106,7 @@ List col_normal_em_soft(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa,
 
 		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		t=t+1;
-	} while(delta>0.00001);
+	} while(delta>0.001);
 
 	phi_trace.resize(t-1);
 	ya_trace.resize(p,t-1);

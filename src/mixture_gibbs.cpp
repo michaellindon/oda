@@ -39,10 +39,10 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	Col<double> ya(na);
 	Col<double> Z(na);
 	Col<double> d(p);
-  Col<double> yoc(no);
+	Col<double> yoc(no);
 	Col<double> Bols(p);
 	Col<double> B(p);
-  Col<double> Bg;
+	Col<double> Bg;
 	Col<double> xoyo(p);
 	Col<double> prob(p,fill::ones);
 	Col<double> priorodds(p);
@@ -70,16 +70,16 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	priorodds=priorprob/(1-priorprob);
 	ldl=sqrt(lam/(d+lam));
 	dli=1/(d+lam);
-  P1=one*(one.t()*one).i()*one.t();
+	P1=one*(one.t()*one).i()*one.t();
 	Px=xo*(xoxo).i()*xo.t();
-  yoc=(Ino-P1)*yo;
+	yoc=(Ino-P1)*yo;
 
 
 	//Initialize Parameters at MLE//
 	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
 	Bols=(xoxo).i()*xo.t()*yo;
 	ya=xa*Bols;
-  B=Bols;
+	B=Bols;
 
 	//Run Gibbs Sampler//
 	ya_mcmc.col(0)=ya;
@@ -87,7 +87,7 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	gamma_mcmc.col(0)=gamma;
 	prob_mcmc.col(0)=prob;
 	lam_mcmc.col(0)=lam;
-  B_mcmc.col(0)=B;
+	B_mcmc.col(0)=B;
 	for (int t = 1; t < niter; ++t)
 	{
 
@@ -102,13 +102,13 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 
 		//Draw Phi//
 		b=0.5*dot(yoc-xog*Bg,yoc-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
-    phi=R::rgamma(0.5*(no+sum(gamma)-1),(1/b)); //rgamma uses scale
+		phi=R::rgamma((double)0.5*(no+sum(gamma)-1),(1/b)); //rgamma uses scale
 
 		//Draw Ya//
 		for (int i = 0; i < na; ++i) Z(i)=R::rnorm(0,1);
 		ya=xag*Bg+sqrt(1/phi)*Z;
-    //ya=xag*(xoxog+Lamg).i()*xog.t()*yo+chol((Ina+xag*(xoxog+Lamg).i()*xag.t())/phi).t()*Z;
-    
+		//ya=xag*(xoxog+Lamg).i()*xog.t()*yo+chol((Ina+xag*(xoxog+Lamg).i()*xag.t())/phi).t()*Z;
+
 
 		Bols=(1/d)%(xoyo+xa.t()*ya);
 		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
@@ -121,11 +121,11 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 				gamma(i)=1;
 				Z(i)=R::rnorm(0,1);
 				B(i)=dli(i)*d(i)*Bols(i)+sqrt(dli(i)/phi)*Z(i);
-        lam(i)=R::rgamma(0.5*(alpha+1),2/(alpha+phi*B(i)*B(i))); //rgamma uses scale
+				lam(i)=R::rgamma(0.5*(alpha+1),2/(alpha+phi*B(i)*B(i))); //rgamma uses scale
 			}else{
 				gamma(i)=0;
 				B(i)=0;
-        lam(i)=R::rgamma(0.5*alpha,2/alpha); //rgamma uses scale
+				lam(i)=R::rgamma(0.5*alpha,2/alpha); //rgamma uses scale
 			}
 		}
 		ldl=sqrt(lam/(d+lam));

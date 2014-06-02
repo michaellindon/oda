@@ -5,14 +5,14 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob){
+List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
 	int t=1;
-	double a=(no-1)/2;
+	double a=(double)0.5*(no+na-1);
 	double b;
 	double delta;
 	Mat<double> xag;
@@ -108,7 +108,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 
 		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		t=t+1;
-	} while(delta>0.00001);
+	} while(delta>0.0001);
 
 	gamma_trace.resize(p,t);
 	prob_trace.resize(p,t);

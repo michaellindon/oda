@@ -37,10 +37,10 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	Col<double> ya(na);
 	Col<double> Z(na);
 	Col<double> d(p);
-  Col<double> yoc(no);
+	Col<double> yoc(no);
 	Col<double> Bols(p);
 	Col<double> B(p,fill::zeros);
-  Col<double> Bg;
+	Col<double> Bg;
 	Col<double> xoyo(p);
 	Col<double> prob(p,fill::ones);
 	Col<double> priorodds(p);
@@ -68,9 +68,9 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	Lam=diagmat(lam);
 	ldl=sqrt(lam/(d+lam));
 	dli=1/(d+lam);
-  P1=one*(one.t()*one).i()*one.t();
+	P1=one*(one.t()*one).i()*one.t();
 	Px=xo*(xoxo).i()*xo.t();
-  yoc=(Ino-P1)*yo;
+	yoc=(Ino-P1)*yo;
 
 
 	//Initialize Parameters at MLE//
@@ -78,14 +78,14 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
 	Bols=(xoxo).i()*xo.t()*yo;
 	ya=xa*Bols;
-  B=Bols;
+	B=Bols;
 
 	//Run Gibbs Sampler//
 	ya_mcmc.col(0)=ya;
 	phi_mcmc(0)=phi;
 	gamma_mcmc.col(0)=gamma;
-  prob_mcmc.col(0)=prob;
-  B_mcmc.col(0)=B;
+	prob_mcmc.col(0)=prob;
+	B_mcmc.col(0)=B;
 	for (int t = 1; t < niter; ++t)
 	{
 
@@ -98,8 +98,8 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 		xoxog=xoxo.submat(inc_indices,inc_indices);
 
 		//Draw Phi//
-  	b=0.5*dot(yoc-xog*Bg,yoc-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
-    phi=R::rgamma(0.5*(no+sum(gamma)-1),(1/b)); //rgamma uses scale
+		b=0.5*dot(yoc-xog*Bg,yoc-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
+		phi=R::rgamma((double)0.5*(no+sum(gamma)-1),(1/b)); //rgamma uses scale
 
 		//Draw Ya//
 		for (int i = 0; i < na; ++i) Z(i)=R::rnorm(0,1);
