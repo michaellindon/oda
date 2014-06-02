@@ -16,6 +16,7 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	double b;
 	double phi;
 	double delta;
+	double lb=0;
 	Mat<double> Aooa(no,no);
 	Mat<double> A(no+na,no+na);
 	Mat<double> Aoo(no,no);
@@ -36,6 +37,7 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	Mat<double> P1(no,no);
 	Mat<double> mu_trace(na,1000,fill::zeros);
 	Mat<double> prob_trace(p,1000,fill::zeros);
+	Col<double> lb_trace(1000);
 	Col<double> b_trace(1000);
 	Col<double> one(no,fill::ones);
 	Col<double> mu(na,fill::zeros);
@@ -89,12 +91,15 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	mu_trace.col(0)=mu;
 	b_trace(0)=b;
 	do{
+
+
 		//Probability Step//
 		for (int i = 0; i < p; i++)
 		{
 			Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),mu));
 			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i)+0.5*dli(i)*dot(xa.col(i),Aaai*xa.col(i)) );
 			prob(i)=odds(i)/(1+odds(i));
+
 		}
 		P=diagmat(prob);
 
@@ -112,10 +117,15 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 		//Ya Step//
 		mu=-Aaai*Aao*yo;
 
+		//Compute Lower Bound//
+		lb=-a*log(2*3.141593)+log(gamma(a))-a*log(b)-0.5*log(det(Aaa))+0.5*sum(prob%log(ldl));
+
+
 		//Store Values//
 		prob_trace.col(t)=prob;
 		mu_trace.col(t)=mu;
 		b_trace(t)=b;
+		lb_trace(t)=lb;
 
 		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		t=t+1;
@@ -124,8 +134,10 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	prob_trace.resize(p,t);
 	mu_trace.resize(p,t);
 	b_trace.resize(t);
+	lb_trace.resize(t);
 
 	return Rcpp::List::create(
+			Rcpp::Named("lb_trace") = lb_trace,
 			Rcpp::Named("prob") = prob,
 			Rcpp::Named("prob_trace") = prob_trace,
 			Rcpp::Named("mu_trace") = mu_trace,
