@@ -12,7 +12,7 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	int no=rxo.nrow();
 	int na=rxa.nrow();
 	int t=1;
-	double a=(no-1)/2;
+	double a=(double)0.5*(no-1);
 	double b;
 	double phi;
 	double delta;
@@ -118,7 +118,7 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 		mu=-Aaai*Aao*yo;
 
 		//Compute Lower Bound//
-		lb=-a*log(2*3.141593)+log(gamma(a))-a*log(b)-0.5*log(det(Aaa))+0.5*sum(prob%log(ldl));
+		lb=-a*log(2*3.141593)+lgamma(a)-a*log(b)-0.5*log(det(Aaa))+0.5*sum(prob%log(ldl));
 
 
 		//Store Values//
