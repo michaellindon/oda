@@ -1,3 +1,4 @@
+#include <chrono>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -84,6 +85,7 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 	prob_trace.col(0)=prob;
 	mu_ya_trace.col(0)=mu_ya;
 	b_trace(0)=b;
+    auto start = std::chrono::steady_clock::now();
 	do{
 		//Phi Maximization Step//
 		//b=0.5*dot(yoc-xo*P*mu_B,yoc-xo*P*mu_B)+0.5*dot(mu_B,Lam*P*mu_B)+0.5*trace(D*P*E_B);
@@ -114,6 +116,12 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		t=t+1;
 	}while (delta>0.0000001*p);
+  
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> elapsed=end-start;
+
+	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
+	std::cout <<  elapsed.count()/(t-1) << " sec - Per Iteration (avg)" << std::endl;
 
 	prob_trace.resize(p,t);
 	mu_ya_trace.resize(p,t);

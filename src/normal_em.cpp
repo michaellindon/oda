@@ -51,7 +51,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Col<double> odds(p,fill::ones);
 	Col<double> ldl(p);
 	Col<double> dli(p);
-	Col<uword> gamma(p,fill::ones);
+	Col<uword> gamma(p,fill::zeros);
 	Col<uword> inc_indices(p,fill::ones);
 	Col<uword> top_model;
 
@@ -78,12 +78,12 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	dli=1/(d+lam);
 
 	//Randomize Initial Gammas//
-	for (int i = 0; i < p; ++i) if(R::runif(0,1)>0.5) gamma(i)=1;
-	B=solve(xoxo+Lam,xoyo); //Initialize at Ridge
+//	for (int i = 0; i < p; ++i) if(R::runif(0,1)>0.5) gamma(i)=1;
+	B=solve(xoxo+2*no*Ina,xoyo); //Initialize at Ridge
 	mu_ya=xa*B;
 	a=(double)0.5*(no-1);
 	b=(double)0.5*dot(yoc-xo*B,yoc-xo*B);
-	Bols=(1/d)%(xoyo+xa.t()*ya);
+	Bols=(1/d)%(xoyo+xa.t()*mu_ya);
 	odds=priorodds%ldl%trunc_exp(0.5*(a/b)*dli%d%d%Bols%Bols);
 	prob=odds/(1+odds);
 	for(int i=0; i<p; i++){

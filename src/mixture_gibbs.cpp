@@ -1,3 +1,4 @@
+#include <chrono>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -88,6 +89,7 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	prob_mcmc.col(0)=prob;
 	lam_mcmc.col(0)=lam;
 	B_mcmc.col(0)=B;
+	auto start = std::chrono::steady_clock::now();
 	for (int t = 1; t < niter; ++t)
 	{
 
@@ -139,6 +141,11 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		ya_mcmc.col(t)=ya;
 		phi_mcmc(t)=phi;
 	}
+	auto end = std::chrono::steady_clock::now();
+	std::chrono::duration<double> elapsed=end-start;
+
+	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
+	std::cout <<  elapsed.count()/niter << " sec - Per Iteration (avg)" << std::endl;
 
 
 	return Rcpp::List::create(
