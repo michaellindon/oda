@@ -46,7 +46,7 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 	Col<double> ldl(p);
 	Col<double> dli(p);
 	Col<double> sigma2_B(p);
-  Col<uword> top_model;
+	Col<uword> top_model;
 
 	//  ProfilerStart("profile.out");
 	//Copy RData Into Matrix Classes//
@@ -113,17 +113,17 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 		b_trace(t)=b;
 		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		t=t+1;
-	}while (delta>0.001);
+	}while (delta>0.0000001*p);
 
 	prob_trace.resize(p,t);
 	mu_ya_trace.resize(p,t);
 	b_trace.resize(t);
 	lb_trace.resize(2*(t-1));
 
-top_model=find(prob>0.5)+1;
+	top_model=find(prob>0.5)+1;
 
-cout << "Top Model Predictors" << endl;
-cout << top_model << endl;
+	cout << "Top Model Predictors" << endl;
+	cout << top_model << endl;
 
 
 	//ProfilerStop();
@@ -134,6 +134,7 @@ cout << top_model << endl;
 			Rcpp::Named("mu_ya_trace") = mu_ya_trace,
 			Rcpp::Named("mu_ya") = mu_ya,
 			Rcpp::Named("mu_B") = mu_B,
+			Rcpp::Named("sigma2_B") = sigma2_B,
 			Rcpp::Named("b_trace") = b_trace,
 			Rcpp::Named("b") = b,
 			Rcpp::Named("lb_trace") = lb_trace,

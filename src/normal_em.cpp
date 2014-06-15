@@ -31,9 +31,9 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Mat<double> prob_trace(p,10000,fill::zeros);
 	Mat<double> B_trace(p,10000,fill::zeros);
 	Mat<uword>  gamma_trace(p,10000,fill::ones);
-  Col<double> lpd_trace(10000);
-    Col<double> a_trace(10000);
-      Col<double> b_trace(10000);
+	Col<double> lpd_trace(10000);
+	Col<double> a_trace(10000);
+	Col<double> b_trace(10000);
 	Col<double> one(no,fill::ones);
 	Col<double> mu_ya(na,fill::zeros);
 	Col<double> ya(na);
@@ -48,9 +48,9 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Col<double> odds(p,fill::ones);
 	Col<double> ldl(p);
 	Col<double> dli(p);
-	Col<uword> gamma(p,fill::zeros);
+	Col<uword> gamma(p,fill::ones);
 	Col<uword> inc_indices(p,fill::ones);
-  Col<uword> top_model;
+	Col<uword> top_model;
 
 	//Copy RData Into Matrix Classes//
 	arma::mat xo(rxo.begin(), no, p, false);
@@ -75,20 +75,21 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	dli=1/(d+lam);
 
 	//Randomize Initial Gammas//
-  for (int i = 0; i < p; ++i) if(R::runif(0,1)>0.5) gamma(i)=1;
+	for (int i = 0; i < p; ++i) if(R::runif(0,1)>0.5) gamma(i)=1;
 	B=solve(xoxo+Lam,xoyo); //Initialize at Ridge
-	//mu_ya=xa*B;
-//  a=(double)0.5*(no-1);
-//  b=(double)0.5*dot(yoc-xo*B,yoc-xo*B)+0.5*dot(B,Lam*B);
-//  odds=priorodds%ldl%trunc_exp(0.5*(a/b)*dli%d%d%Bols%Bols);
-//	prob=odds/(1+odds);
-//  for(int i=0; i<p; i++){
-//  if(prob(i)>0.5){
-//    gamma(i)=1;
-//  }else{
-//    gamma(i)=0;
-//  }
-//}
+	mu_ya=xa*B;
+	a=(double)0.5*(no-1);
+	b=(double)0.5*dot(yoc-xo*B,yoc-xo*B);
+	Bols=(1/d)%(xoyo+xa.t()*ya);
+	odds=priorodds%ldl%trunc_exp(0.5*(a/b)*dli%d%d%Bols%Bols);
+	prob=odds/(1+odds);
+	for(int i=0; i<p; i++){
+		if(R::runif(0,1)<prob(i)){
+			gamma(i)=1;
+		}else{
+			gamma(i)=0;
+		}
+	}
 
 	//Run Gibbs Sampler//
 	gamma_trace.col(0)=gamma;
@@ -131,8 +132,8 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 
 
 		//Store Values//
-      a_trace(t)=a;
-  b_trace(t)=b;
+		a_trace(t)=a;
+		b_trace(t)=b;
 		gamma_trace.col(t)=gamma;
 		B_trace.col(t)=B;
 		prob_trace.col(t)=prob;
@@ -147,21 +148,21 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	prob_trace.resize(p,t);
 	B_trace.resize(p,t);
 	lpd_trace.resize(t-1);
-  a_trace.resize(t);
-  b_trace.resize(t);
-  
- top_model=find(gamma)+1;
+	a_trace.resize(t);
+	b_trace.resize(t);
 
-cout << "Top Model Predictors" << endl;
-cout << top_model << endl;
+	top_model=find(gamma)+1;
+
+	cout << "Top Model Predictors" << endl;
+	cout << top_model << endl;
 
 	return Rcpp::List::create(
-    Rcpp::Named("top_model")=top_model,
-  		Rcpp::Named("a") = a,
+			Rcpp::Named("top_model")=top_model,
+			Rcpp::Named("a") = a,
 			Rcpp::Named("a_trace") = a_trace,
-        		Rcpp::Named("b") = b,
+			Rcpp::Named("b") = b,
 			Rcpp::Named("b_trace") = b_trace,
-        		Rcpp::Named("prob") = prob,
+			Rcpp::Named("prob") = prob,
 			Rcpp::Named("prob_trace") = prob_trace,
 			Rcpp::Named("B") = B,
 			Rcpp::Named("B_trace") = B_trace,
