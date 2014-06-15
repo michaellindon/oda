@@ -1,3 +1,4 @@
+#include <chrono>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -17,6 +18,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	double a=(double)0.5*(no+na-1);
 	double b=1;
 	double deltaP,deltaB;
+	double phi;
 	Mat<double> xag;
 	Mat<double> xaxa(p,p);
 	Mat<double> xoxo(p,p);
@@ -31,7 +33,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Mat<double> prob_trace(p,10000,fill::zeros);
 	Mat<double> B_trace(p,10000,fill::zeros);
 	Mat<uword>  gamma_trace(p,10000,fill::ones);
-	Col<double> lpd_trace(10000);
+	Col<double> lpd_trace(10000,fill::zeros);
 	Col<double> a_trace(10000);
 	Col<double> b_trace(10000);
 	Col<double> one(no,fill::ones);
@@ -42,7 +44,8 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Col<double> Bols(p);
 	Col<double> B(p,fill::zeros);
 	Col<double> Bg;
-	Col<double> xoyo(p);
+  Col<double> xoyo(p);
+    Col<double> xamu_ya(p);
 	Col<double> prob(p,fill::ones);
 	Col<double> priorodds(p);
 	Col<double> odds(p,fill::ones);
@@ -94,6 +97,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	//Run Gibbs Sampler//
 	gamma_trace.col(0)=gamma;
 	prob_trace.col(0)=prob;
+      auto start = std::chrono::steady_clock::now();
 	do{
 		//Form Submatrices
 		inc_indices=find(gamma);
@@ -106,21 +110,23 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		//Phi//
 		b=(double)0.5*dot(yoc-xog*Bg,yoc-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
 		a=(double)0.5*(no+sum(gamma)-1);
+		phi=a/b;
 
 		//Ya//
 		mu_ya=xag*Bg;
+    xamu_ya=xa.t()*mu_ya;
 
 		//Gamma//
 		for (int i = 0; i < p; ++i)
 		{
-			Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),mu_ya));
-			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*(a/b)*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
+			Bols(i)=(1/d(i))*(xoyo(i)+xamu_ya(i));
+			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
 			prob(i)=odds(i)/(1+odds(i));
 			//if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
 
 			//M-Step//
 			//Choose Median Probability Model//
-			if(prob(i)*sqrt( ((d(i)+lam(i))*(a/b))/(2*M_PI) )>(1-prob(i))){
+			if(prob(i)*sqrt( ((d(i)+lam(i))*(phi))/(2*M_PI) )>(1-prob(i))){
 				gamma(i)=1;
 				B(i)=dli(i)*d(i)*Bols(i);
 			}else{
@@ -144,6 +150,13 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		t=t+1;
 	} while(deltaP>0.0001 || deltaB>0.0001);
 
+          auto end = std::chrono::steady_clock::now();
+          std::chrono::duration<double> elapsed=end-start;
+  	 
+		        std::cout <<  elapsed.count() << " seconds" << std::endl;
+
+
+
 	gamma_trace.resize(p,t);
 	prob_trace.resize(p,t);
 	B_trace.resize(p,t);
@@ -154,7 +167,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	top_model=find(gamma)+1;
 
 	cout << "Top Model Predictors" << endl;
-	cout << top_model << endl;
+//	cout << top_model << endl;
 
 	return Rcpp::List::create(
 			Rcpp::Named("top_model")=top_model,
