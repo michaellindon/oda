@@ -44,8 +44,8 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Col<double> Bols(p);
 	Col<double> B(p,fill::zeros);
 	Col<double> Bg;
-  Col<double> xoyo(p);
-    Col<double> xamu_ya(p);
+	Col<double> xoyo(p);
+	Col<double> xamu_ya(p);
 	Col<double> prob(p,fill::ones);
 	Col<double> priorodds(p);
 	Col<double> odds(p,fill::ones);
@@ -97,7 +97,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	//Run Gibbs Sampler//
 	gamma_trace.col(0)=gamma;
 	prob_trace.col(0)=prob;
-      auto start = std::chrono::steady_clock::now();
+	auto start = std::chrono::steady_clock::now();
 	do{
 		//Form Submatrices
 		inc_indices=find(gamma);
@@ -114,7 +114,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 
 		//Ya//
 		mu_ya=xag*Bg;
-    xamu_ya=xa.t()*mu_ya;
+		xamu_ya=xa.t()*mu_ya;
 
 		//Gamma//
 		for (int i = 0; i < p; ++i)
@@ -143,17 +143,19 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		gamma_trace.col(t)=gamma;
 		B_trace.col(t)=B;
 		prob_trace.col(t)=prob;
-		lpd_trace(t-1)= log_posterior_density( no,lam, gamma, priorprob, a,  b, p);
+		//		lpd_trace(t-1)= log_posterior_density( no,lam, gamma, priorprob, a,  b, p);
 
 		deltaP=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		deltaB=dot(B_trace.col(t)-B_trace.col(t-1),B_trace.col(t)-B_trace.col(t-1));
 		t=t+1;
-	} while(deltaP>0.0001 || deltaB>0.0001);
+	} while(deltaP>0.00000001 || deltaB>0.00000000001);
 
-          auto end = std::chrono::steady_clock::now();
-          std::chrono::duration<double> elapsed=end-start;
-  	 
-		        std::cout <<  elapsed.count() << " seconds" << std::endl;
+	auto end = std::chrono::steady_clock::now();
+	std::chrono::duration<double> elapsed=end-start;
+
+	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
+	std::cout <<  elapsed.count()/(t-1) << " sec - Per Iteration (avg)" << std::endl;
+
 
 
 
@@ -167,7 +169,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	top_model=find(gamma)+1;
 
 	cout << "Top Model Predictors" << endl;
-//	cout << top_model << endl;
+	cout << top_model << endl;
 
 	return Rcpp::List::create(
 			Rcpp::Named("top_model")=top_model,

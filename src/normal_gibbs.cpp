@@ -1,3 +1,4 @@
+#include <chrono>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -18,7 +19,6 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	Mat<double> xag;
 	Mat<double> xaxa(p,p);
 	Mat<double> xoxo(p,p);
-	Mat<double> xoxog(p,p);
 	Mat<double> D(p,p);
 	Mat<double> Lam(p,p);
 	Mat<double> Lamg(p,p);
@@ -42,6 +42,7 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	Col<double> B(p,fill::zeros);
 	Col<double> Bg;
 	Col<double> xoyo(p);
+	Col<double> xaya(p);
 	Col<double> prob(p,fill::ones);
 	Col<double> priorodds(p);
 	Col<double> odds(p);
@@ -86,6 +87,7 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	gamma_mcmc.col(0)=gamma;
 	prob_mcmc.col(0)=prob;
 	B_mcmc.col(0)=B;
+	auto start = std::chrono::steady_clock::now();
 	for (int t = 1; t < niter; ++t)
 	{
 
@@ -95,7 +97,6 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 		Lamg=Lam.submat(inc_indices,inc_indices);
 		xag=xa.cols(inc_indices);
 		xog=xo.cols(inc_indices);
-		xoxog=xoxo.submat(inc_indices,inc_indices);
 
 		//Draw Phi//
 		b=0.5*dot(yoc-xog*Bg,yoc-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
@@ -104,14 +105,20 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 		//Draw Ya//
 		for (int i = 0; i < na; ++i) Z(i)=R::rnorm(0,1);
 		ya=xag*Bg+sqrt(1/phi)*Z;
+		xaya=xa.t()*ya;
 
-		Bols=(1/d)%(xoyo+xa.t()*ya);
-		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
-		prob=odds/(1+odds);
+		for(int i=0; i<p; ++i){
+			Bols(i)=(1/d(i))*(xoyo(i)+xaya(i));
+			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
+			prob(i)=odds(i)/(1+odds(i));
+		}
+
+		for(int i=0; i<p; ++i)  if(prob(i)!=prob(i)) prob(i)=1;   //Catch NaN
+
+
 		for (int i = 0; i < p; ++i)
 		{
 			//Draw Gamma, Beta//
-			if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
 			if(R::runif(0,1)<prob(i)){
 				gamma(i)=1;
 				Z(i)=R::rnorm(0,1);
@@ -129,6 +136,11 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 		ya_mcmc.col(t)=ya;
 		phi_mcmc(t)=phi;
 	}
+	auto end = std::chrono::steady_clock::now();
+	std::chrono::duration<double> elapsed=end-start;
+
+	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
+	std::cout <<  elapsed.count()/niter << " sec - Per Iteration (avg)" << std::endl;
 
 
 	return Rcpp::List::create(
