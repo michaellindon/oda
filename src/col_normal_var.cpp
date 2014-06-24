@@ -1,12 +1,15 @@
+//#include <google/profiler.h>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
 using namespace Rcpp;
 using namespace arma;
 
+double lower_bound(double a,double b,const Col<double>& mu_ya,const Col<double>& prob,const Mat<double>& P,const Col<double>& lam, const Col<double>& yo,const Mat<double>& xc,const Mat<double>& xo,const Mat<double>& xa, const Col<double>& d, const Mat<double>& D,int no,int na, int p,const Col<double>& priorprob,const Mat<double>& Aaai,const Col<double>& ldl,const Col<double>& dli);
+
 // [[Rcpp::export]]
 List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob){
-
+  
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
@@ -50,12 +53,15 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	Col<double> ldl(p);
 	Col<double> dli(p);
 
+//  ProfilerStart("profile.out");
 	//Copy RData Into Matrix Classes//
 	arma::mat xo(rxo.begin(), no, p, false);
 	arma::mat xa(rxa.begin(), na, p, false);
 	arma::colvec yo(ryo.begin(), ryo.size(), false);
 	arma::colvec lam(rlam.begin(),rlam.size(), false);
 	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
+  
+
 
 	//Create Matrices//
 	xc=join_cols(xo,xa);
@@ -103,6 +109,8 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 		}
 		P=diagmat(prob);
 
+ cout <<  lower_bound( a, b, mu, prob, P,lam,yo,xc,xo,xa ,d, D, no, na, p, priorprob,Aaai,ldl,dli) << endl;
+
 		//Phi Step//
 		A=Inc-xc*P*xcxcLami*xc.t();
 		Aoo=A.submat(0,0,no-1,no-1)-P1;
@@ -117,8 +125,17 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 		//Ya Step//
 		mu=-Aaai*Aao*yo;
 
+
+  cout << lower_bound( a, b, mu, prob, P,lam,yo,xc,xo,xa ,d, D, no, na, p, priorprob,Aaai,ldl,dli) << endl;
+		
 		//Compute Lower Bound//
-		lb=-a*log(2*3.141593)+lgamma(a)-a*log(b)-0.5*log(det(Aaa))+0.5*sum(prob%log(ldl));
+		/*lb=-a*log(2*M_PI)+lgamma(a)-a*log(b)-0.5*log(det(Aaa))+0.5*sum(prob%log(ldl));
+		for (int i = 0; i < p; ++i)
+		{
+			if(prob(i)!=1 && prob(i)!=0){
+				lb-=(prob(i)*log(prob(i))+(1-prob(i))*log(1-prob(i)));
+			}
+		}*/
 
 
 		//Store Values//
@@ -134,8 +151,9 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 	prob_trace.resize(p,t);
 	mu_trace.resize(p,t);
 	b_trace.resize(t);
-	lb_trace.resize(t);
+  lb_trace.resize(2*(t-1));
 
+//ProfilerStop();
 	return Rcpp::List::create(
 			Rcpp::Named("lb_trace") = lb_trace,
 			Rcpp::Named("prob") = prob,
@@ -147,4 +165,27 @@ List col_normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Num
 			Rcpp::Named("b") = b
 			) ;
 
+}
+
+
+
+
+
+double lower_bound(double a,double b,const Col<double>& mu_ya,const Col<double>& prob,const Mat<double>& P,const Col<double>& lam, const Col<double>& yo,const Mat<double>& xc,const Mat<double>& xo,const Mat<double>& xa, const Col<double>& d, const Mat<double>& D,int no,int na, int p,const Col<double>& priorprob, const Mat<double>& Aaai,const Col<double>& ldl,const Col<double>& dli){
+
+	double L_yc=0;
+	double L_g=0;
+	double L_phi=0;
+	double entropy_g=0;
+	double entropy_yaphi=0;
+
+	L_yc=0.5*(no+na-1)*(Rf_digamma(a)-log(b)-log(2*M_PI))-0.5*(a/b)*(dot(yo,yo)+dot(mu_ya,mu_ya))-0.5*trace(Aaai);
+	for (int i = 0; i < p; i++) {
+		L_yc+=0.5*prob(i)*log(ldl(i))+0.5*prob(i)*dli(i)*dot(xa.col(i),Aaai*xa.col(i))+0.5*(a/b)*prob(i)*dli(i)*(dot(xo.col(i),yo)+dot(xa.col(i),mu_ya))*(dot(xo.col(i),yo)+dot(xa.col(i),mu_ya));
+		L_g+=prob(i)*log(priorprob(i))+(1-prob(i))*log(1-priorprob(i));
+		if(prob(i)!=0 && prob(i)!=1) entropy_g-=(prob(i)*log(prob(i))+(1-prob(i))*log(1-prob(i)));
+	}
+	L_phi=-(Rf_digamma(a)-log(b));
+	entropy_yaphi=-(0.5*(no+na-1)-1)*(Rf_digamma(a)-log(b))+0.5*log(det(Aaai))+0.5*na*log(2*M_PI)-a*log(b)+lgamma(a)+a;
+	return(L_yc+L_g+L_phi+entropy_g+entropy_yaphi);
 }
