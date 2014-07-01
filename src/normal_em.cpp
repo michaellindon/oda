@@ -5,7 +5,7 @@
 using namespace Rcpp;
 using namespace arma;
 
-double log_posterior_density(int no,const Col<double>& lam, const Col<uword>& gamma,const Col<double>& priorprob, double a, double b,int p);
+double log_posterior_density(int no,const Col<double>& lam, const Col<uword>& gamma,const Col<double>& priorodds, double a, double b,int p);
 
 // [[Rcpp::export]]
 List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob){
@@ -111,6 +111,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		b=(double)0.5*dot(yoc-xog*Bg,yoc-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
 		a=(double)0.5*(no+sum(gamma)-1);
 		phi=a/b;
+    lpd_trace(t-1)= log_posterior_density( no,lam, gamma, priorodds, a,  b, p);
 
 		//Ya//
 		mu_ya=xag*Bg;
@@ -143,7 +144,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		gamma_trace.col(t)=gamma;
 		B_trace.col(t)=B;
 		prob_trace.col(t)=prob;
-		//		lpd_trace(t-1)= log_posterior_density( no,lam, gamma, priorprob, a,  b, p);
+
 
 		deltaP=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		deltaB=dot(B_trace.col(t)-B_trace.col(t-1),B_trace.col(t)-B_trace.col(t-1));
@@ -191,12 +192,12 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 
 
 
-double log_posterior_density(int no,const Col<double>& lam, const Col<uword>& gamma, const Col<double>& priorprob, double a, double b,int p){
+double log_posterior_density(int no,const Col<double>& lam, const Col<uword>& gamma, const Col<double>& priorodds, double a, double b,int p){
 
 	double lpd;
 	Col<uword> one(p,fill::ones);
 
-	lpd=0.5*sum(gamma%log(lam))-0.5*(no-1+sum(gamma))*log(2*M_PI)+lgamma(a)-a*log(b)+sum(gamma%log(priorprob))+sum((one-gamma)%log(one-priorprob));
-	return(lpd);
+	lpd=lgamma(a)-a*log(b)+0.5*sum(gamma%log(lam))-0.5*(no+sum(gamma)-1)*log(2*M_PI)+sum(gamma%log(priorodds));
+  return(lpd);
 
 }
