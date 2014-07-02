@@ -8,17 +8,21 @@ using namespace arma;
 double lower_bound(double a,double b,const Col<double>& mu_B,const Col<double>& sigma2_B,const Col<double>& mu_ya,const Col<double>& prob,const Mat<double>& P,const Col<double>& lam, const Col<double>& yo,const Mat<double>& xc,const Mat<double>& xo,const Mat<double>& xa, const Col<double>& d, const Mat<double>& D,int no,int na, int p,const Col<double>& priorprob);
 
 // [[Rcpp::export]]
-List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob){
+List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rrho_min, SEXP ranneal_steps){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
 	int t=1;
+	int anneal_steps=Rcpp::as<int >(ranneal_steps);
 	double a;
 	double b;
 	double phi;
 	double delta;
+	double rho;
+	double geometric;
+	double rho_min=Rcpp::as<double >(rrho_min);
 	Mat<double> xaxa(p,p);
 	Mat<double> xoxo(p,p);
 	Mat<double> D(p,p);
@@ -70,22 +74,27 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 	ldl=sqrt(lam/(d+lam));
 	dli=1/(d+lam);
 	sigma2_B=dli;
-	mu_B=solve(xoxo+Lam,xo.t()*yo); //Initialize at Ridge
-	mu_ya=xa*mu_B;
+//	mu_B=solve(xoxo+Lam,xo.t()*yo); //Initialize at Ridge
+//	mu_ya=xa*mu_B;
 	P1=one*(one.t()*one).i()*one.t();
 	yoc=(Ino-P1)*yo;
 	phi=1;
 
 	//Randomize Initial Probabilities//
 	//for (int i = 0; i < p; ++i) prob(i)=R::rbeta(1,10); // prob(i)=R::runif(0,1);
-	prob=rbeta(p,0.5,0.5);
+	//prob=rbeta(p,0.5,0.5);
+  prob=prob*0.5;
 	P=diagmat(prob);
 
 	//Run Variational//
 	prob_trace.col(0)=prob;
 	mu_ya_trace.col(0)=mu_ya;
 	b_trace(0)=b;
-    auto start = std::chrono::steady_clock::now();
+	auto start = std::chrono::steady_clock::now();
+
+	for(int anneal=0; anneal<=anneal_steps; ++anneal){
+	geometric=(double)(anneal_steps-anneal)/anneal_steps;
+	rho=pow(rho_min,geometric);
 	do{
 		//Phi Maximization Step//
 		//b=0.5*dot(yoc-xo*P*mu_B,yoc-xo*P*mu_B)+0.5*dot(mu_B,Lam*P*mu_B)+0.5*trace(D*P*E_B);
@@ -101,6 +110,7 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 		//Probability Step//
 		Bols=(1/d)%(xoyo+xa.t()*mu_ya);
 		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
+		odds=pow(odds,rho);
 		prob=odds/(1+odds);
 		P=diagmat(prob);
 
@@ -116,9 +126,10 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		t=t+1;
 	}while (delta>0.0000001*p);
-  
-    auto end = std::chrono::steady_clock::now();
-    std::chrono::duration<double> elapsed=end-start;
+	}
+
+	auto end = std::chrono::steady_clock::now();
+	std::chrono::duration<double> elapsed=end-start;
 
 	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
 	std::cout <<  elapsed.count()/(t-1) << " sec - Per Iteration (avg)" << std::endl;
