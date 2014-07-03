@@ -6,21 +6,25 @@
 using namespace Rcpp;
 using namespace arma;
 
-double lower_bound(double a,double b,const Col<double>& mu_B,const Col<double>& sigma2_B,const Col<double>& mu_ya,const Col<double>& prob,const Mat<double>& P,const Col<double>& lam, const Col<double>& yo,const Mat<double>& xc,const Mat<double>& xo,const Mat<double>& xa, const Col<double>& d, const Mat<double>& D,int no,int na, int p,const Col<double>& priorprob,const Col<double>& a_lam, const Col<double>& b_lam, double alpha);
+double lower_bound(double a,double b,const Col<double>& mu_B,const Col<double>& sigma2_B,const Col<double>& mu_ya,const Col<double>& prob,const Mat<double>& P,const Col<double>& lam, const Col<double>& yoc,const Mat<double>& xc,const Mat<double>& xo,const Mat<double>& xa, const Col<double>& d, const Mat<double>& D,int no,int na, int p,const Col<double>& priorprob,const Col<double>& a_lam, const Col<double>& b_lam, double alpha);
 
 // [[Rcpp::export]]
-List mixture_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP ralpha){
+List mixture_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP ralpha, SEXP rrho_min, SEXP ranneal_steps){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
 	int t=1;
+	int anneal_steps=Rcpp::as<int >(ranneal_steps);
 	double a;
 	double b;
 	double phi;
 	double delta;
 	double alpha=Rcpp::as<double >(ralpha);
+	double rho;
+	double geometric;
+	double rho_min=Rcpp::as<double >(rrho_min);
 	Mat<double> xaxa(p,p);
 	Mat<double> xoxo(p,p);
 	Mat<double> D(p,p);
@@ -74,15 +78,16 @@ List mixture_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeri
 	ldl=sqrt(lam/(d+lam));
 	dli=1/(d+lam);
 	sigma2_B=dli;
-	mu_B=solve(xoxo+Lam,xoyo); //Initialize at Ridge
-	mu_ya=xa*mu_B;
+//	mu_B=solve(xoxo+Lam,xoyo); //Initialize at Ridge
+//	mu_ya=xa*mu_B;
 	P1=one*(one.t()*one).i()*one.t();
 	yoc=(Ino-P1)*yo;
 	phi=1;
 
 	//Randomize Initial Probabilities//
 	//for (int i = 0; i < p; ++i) prob(i)=R::rbeta(1,10); // prob(i)=R::runif(0,1);
-	prob=rbeta(p,0.5,0.5);
+	//prob=rbeta(p,0.5,0.5);
+  prob=prob*0.5;
 	P=diagmat(prob);
 
 	//Run Variational//
@@ -90,6 +95,9 @@ List mixture_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeri
 	mu_ya_trace.col(0)=mu_ya;
 	b_trace(0)=b;
     auto start = std::chrono::steady_clock::now();
+	for(int anneal=0; anneal<=anneal_steps; ++anneal){
+	geometric=(double)(anneal_steps-anneal)/anneal_steps;
+	rho=pow(rho_min,geometric);
 	do{
 		//Phi Maximization Step//
 		b=0.5*dot(yoc-xo*P*mu_B,yoc-xo*P*mu_B)+0.5*dot(mu_B,Lam*P*mu_B)+0.5*dot(mu_B,(P-P*P)*D*mu_B)+0.5*sum(prob%sigma2_B%(lam+d));
@@ -99,18 +107,19 @@ List mixture_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeri
 		//Ya Maximization Step//
 		mu_ya=xa*P*mu_B;
 
-		lb_trace[3*t-3]= lower_bound( a, b, mu_B, sigma2_B, mu_ya, prob, P,lam,yo,xc,xo,xa ,d, D, no, na, p, priorprob,a_lam,b_lam,alpha);
+		lb_trace[3*t-3]= lower_bound( a, b, mu_B, sigma2_B, mu_ya, prob, P,lam,yoc,xc,xo,xa ,d, D, no, na, p, priorprob,a_lam,b_lam,alpha);
 
 		//Probability Step//
 		Bols=(1/d)%(xoyo+xa.t()*mu_ya);
 		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
+		odds=pow(odds,rho);
 		prob=odds/(1+odds);
 		P=diagmat(prob);
 
 		mu_B=dli%d%Bols;
 		sigma2_B=(dli)/phi;
 
-		lb_trace[3*t-2]= lower_bound( a, b, mu_B, sigma2_B, mu_ya, prob, P,lam,yo,xc,xo,xa ,d, D, no, na, p, priorprob,a_lam,b_lam,alpha);
+		lb_trace[3*t-2]= lower_bound( a, b, mu_B, sigma2_B, mu_ya, prob, P,lam,yoc,xc,xo,xa ,d, D, no, na, p, priorprob,a_lam,b_lam,alpha);
 
 		for (int i = 0; i < p; ++i)
 		{
@@ -122,7 +131,7 @@ List mixture_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeri
 		ldl=sqrt(lam/(d+lam));
 		dli=1/(d+lam);
 
-		lb_trace[3*t-1]= lower_bound( a, b, mu_B, sigma2_B, mu_ya, prob, P,lam,yo,xc,xo,xa ,d, D, no, na, p, priorprob,a_lam,b_lam,alpha);
+		lb_trace[3*t-1]= lower_bound( a, b, mu_B, sigma2_B, mu_ya, prob, P,lam,yoc,xc,xo,xa ,d, D, no, na, p, priorprob,a_lam,b_lam,alpha);
 
 		//Store Values//
 		prob_trace.col(t)=prob;
@@ -132,7 +141,7 @@ List mixture_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeri
 		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		t=t+1;
 	}while (delta>0.001*p);
-
+	}
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed=end-start;
 
@@ -169,7 +178,7 @@ Rcpp::Named("prob") = prob,
 
 
 
-double lower_bound(double a,double b,const Col<double>& mu_B,const Col<double>& sigma2_B,const Col<double>& mu_ya,const Col<double>& prob,const Mat<double>& P,const Col<double>& lam, const Col<double>& yo,const Mat<double>& xc,const Mat<double>& xo,const Mat<double>& xa, const Col<double>& d, const Mat<double>& D,int no,int na, int p,const Col<double>& priorprob,const Col<double>& a_lam, const Col<double>& b_lam, double alpha){
+double lower_bound(double a,double b,const Col<double>& mu_B,const Col<double>& sigma2_B,const Col<double>& mu_ya,const Col<double>& prob,const Mat<double>& P,const Col<double>& lam, const Col<double>& yoc,const Mat<double>& xc,const Mat<double>& xo,const Mat<double>& xa, const Col<double>& d, const Mat<double>& D,int no,int na, int p,const Col<double>& priorprob,const Col<double>& a_lam, const Col<double>& b_lam, double alpha){
 
 	double L_yc=0;
 	double L_B=0;
@@ -180,7 +189,7 @@ double lower_bound(double a,double b,const Col<double>& mu_B,const Col<double>& 
 	double entropy_lam=0;
 	double entropy_yaphi=0;
 
-	L_yc=0.5*(no+na-1)*(Rf_digamma(a)-log(b)-log(2*M_PI))-(0.5*na)-0.5*(a/b)*(dot(yo,yo)+dot(mu_ya,mu_ya)+dot(mu_B,P*D*mu_B)-2*dot(yo,xo*P*mu_B)-2*dot(mu_ya,xa*P*mu_B)+sum(d%prob%sigma2_B));
+	L_yc=0.5*(no+na-1)*(Rf_digamma(a)-log(b)-log(2*M_PI))-(0.5*na)-0.5*(a/b)*(dot(yoc,yoc)+dot(mu_ya,mu_ya)+dot(mu_B,P*D*mu_B)-2*dot(yoc,xo*P*mu_B)-2*dot(mu_ya,xa*P*mu_B)+sum(d%prob%sigma2_B));
 	for (int i = 0; i < p; i++) {
 		L_B+=0.5*prob(i)*(Rf_digamma(a)-log(b)+Rf_digamma(a_lam(i))-log(b_lam(i))-log(2*M_PI))-0.5*(a/b)*prob(i)*(a_lam(i)/b_lam(i))*(mu_B(i)*mu_B(i)+sigma2_B(i));
 		L_g+=prob(i)*log(priorprob(i))+(1-prob(i))*log(1-priorprob(i));
