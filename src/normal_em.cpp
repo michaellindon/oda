@@ -22,19 +22,19 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
 	arma::colvec yo(ryo.begin(), ryo.size(), false);
 	yo-=mean(yo);
-  
+
 
 	Mat<double> Ino=eye(no,no);
 	Mat<double> Ina=eye(na,na);
 	Col<double> xoyo=xo.t()*yo;
-//  Col<double> B=solve(xoxo+no*Ina,xoyo); //Initialize at Ridge
-// Col<double> B=(1/no)*xoyo-(1/(no*no))*xo.t()*solve(Ino+(1/no)*xo*xo.t(),xo*xoyo);
-  Col<double> B(p,fill::zeros);
-  Col<double> Bols=B;
+	//  Col<double> B=solve(xoxo+no*Ina,xoyo); //Initialize at Ridge
+	// Col<double> B=(1/no)*xoyo-(1/(no*no))*xo.t()*solve(Ino+(1/no)*xo*xo.t(),xo*xoyo);
+	Col<double> B(p,fill::zeros);
+	Col<double> Bols=B;
 	Col<double> mu_ya=xa*B;
-  Mat<double> xat=xa.t();
+	Mat<double> xat=xa.t();
 	Col<double> xamu_ya=xat*mu_ya;
-  
+
 	Mat<double> Lam=diagmat(lam);
 	Col<double> prob=priorprob;
 	Col<double> priorodds=priorprob/(1-priorprob);
@@ -67,11 +67,11 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	double deltaB;
 	double phi;
 
-	//Run Gibbs Sampler//
+	//Run EM Algorithm//
 	gamma_trace.col(0)=gamma;
 	prob_trace.col(0)=prob;
 	int t=1;
-       auto start = std::chrono::steady_clock::now();
+	auto start = std::chrono::steady_clock::now();
 	do{
 		//Form Submatrices
 		inc_indices=find(gamma);
@@ -86,12 +86,12 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		b=(double)0.5*dot(yo-xog*Bg,yo-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
 		a=(double)0.5*(no+sum(gamma)-1);
 		phi=a/b;
-		lpd_trace(t-1)= log_posterior_density( no,lam, gamma, priorodds, a,  b, p);
+		//	lpd_trace(t-1)= log_posterior_density( no,lam, gamma, priorodds, a,  b, p);
 
 		//Ya//
 		mu_ya=xag*Bg;
-		xamu_ya=xat*mu_ya;
 
+		xamu_ya=xat*mu_ya;
 		//Gamma//
 		for (int i = 0; i < p; ++i)
 		{
@@ -125,8 +125,8 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		t=t+1;
 	} while(deltaP>0.0001 || deltaB>0.0001);
 
-  auto end = std::chrono::steady_clock::now();
-  std::chrono::duration<double> elapsed=end-start;
+	auto end = std::chrono::steady_clock::now();
+	std::chrono::duration<double> elapsed=end-start;
 
 	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
 	std::cout <<  elapsed.count()/(t-1) << " sec - Per Iteration (avg)" << std::endl;
