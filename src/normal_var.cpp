@@ -10,12 +10,14 @@ double lower_bound(double a,double b,const Col<double>& mu_B,const Col<double>& 
 // [[Rcpp::export]]
 List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd,NumericVector rlam, NumericVector rpriorprob, SEXP rrho_min, SEXP ranneal_steps){
 
+	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
 	int anneal_steps=Rcpp::as<int >(ranneal_steps);
 	double rho_min=Rcpp::as<double >(rrho_min);
 
+	//Create Data//
 	arma::mat xo(rxo.begin(), no, p, false);
 	arma::mat xa(rxa.begin(), na, p, false);
 	arma::colvec d(rd.begin(),rd.size(), false);
@@ -24,6 +26,7 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 	arma::colvec yo(ryo.begin(), ryo.size(), false);
 	yo-=mean(yo);
 
+	//Pre-Processing//
 	Mat<double> Ino=eye(no,no);
 	Mat<double> Ina=eye(na,na);
 	Mat<double> Inc=eye(no+na,no+na);
@@ -37,14 +40,18 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 	Col<double> priorodds=priorprob/(1-priorprob);
 	Col<double> logpriorodds=log(priorprob/(1-priorprob));
 	Col<double> odds=priorodds;
-	
 	Col<double> logldl=0.5*log(lam/(d+lam));
 	Col<double> dli=1/(d+lam);
 	Col<double> sigma2_B=dli;
 	Col<double> Bols(p);
-	Col<double> prob(p,fill::ones);
-	prob*=0.5;
+	Col<double> prob(p,fill::ones); prob*=0.5;
 	Mat<double> P=diagmat(prob);
+	double a;
+	double b;
+	double phi=1;
+	double delta;
+	double rho;
+	double geometric;
 	//Randomize Initial Probabilities//
 	//for (int i = 0; i < p; ++i) prob(i)=R::rbeta(1,10); // prob(i)=R::runif(0,1);
 
@@ -55,43 +62,35 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 	Col<double> b_trace(10000);
 	Col<double> lb_trace(10000);
 
-
-	double a;
-	double b;
-	double phi=1;
-	double delta;
-	double rho;
-	double geometric;
-
+	//Run Variational Algorithm//
 	prob_trace.col(0)=prob;
 	mu_ya_trace.col(0)=mu_ya;
 	b_trace(0)=b;
 	int t=1;
-	
-	//Run Variational//
 	auto start = std::chrono::steady_clock::now();
 	for(int anneal=0; anneal<=anneal_steps; ++anneal){
 	geometric=(double)(anneal_steps-anneal)/anneal_steps;
 	rho=pow(rho_min,geometric);
 	do{
-		//Phi Maximization Step//
+		//Phi Step//
 		//b=0.5*dot(yo-xo*P*mu_B,yo-xo*P*mu_B)+0.5*dot(mu_B,Lam*P*mu_B)+0.5*trace(D*P*E_B);
 		b=0.5*dot(yo-xo*P*mu_B,yo-xo*P*mu_B)+0.5*dot(mu_B,Lam*P*mu_B)+0.5*sum(prob%sigma2_B%(lam+d))+0.5*dot(mu_B,(P-P*P)*D*mu_B);
 		a=0.5*(no+sum(prob)-1);
 		phi=((double)a)/b;
 
-		//Ya Maximization Step//
+		//Ya Step//
 		mu_ya=xa*P*mu_B;
 
 		lb_trace[2*t-2]= lower_bound( a, b, mu_B, sigma2_B, mu_ya, prob, P,lam,yo,xc,xo,xa ,d, D, no, na, p, priorprob);
 
-		//Probability Step//
+		//Gamma Step//
 		Bols=(1/d)%(xoyo+xat*mu_ya);
 		odds=logpriorodds+logldl+(0.5*phi*dli%d%d%Bols%Bols);
 		odds=trunc_exp(rho*odds);
 		prob=odds/(1+odds);
 		P=diagmat(prob);
 
+		//Beta Step//
 		mu_B=dli%d%Bols;
 		sigma2_B=dli/phi;
 
@@ -100,36 +99,38 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 		//Store Values//
 		prob_trace.col(t)=prob;
 		mu_ya_trace.col(t)=mu_ya;
+		mu_B_trace.col(t)=mu_B;
 		b_trace(t)=b;
 		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		t=t+1;
 	}while (delta>0.0000001*p);
 	}
 
+	//Report Runtime//
 	auto end = std::chrono::steady_clock::now();
 	std::chrono::duration<double> elapsed=end-start;
-
 	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
 	std::cout <<  elapsed.count()/(t-1) << " sec - Per Iteration (avg)" << std::endl;
 
+	//Resize Trace Matrices//
 	prob_trace.resize(p,t);
 	mu_ya_trace.resize(p,t);
+	mu_B_trace.resize(p,t);
 	b_trace.resize(t);
 	lb_trace.resize(2*(t-1));
 
+	//Report Top Model//
 	Col<uword> top_model=find(prob>0.5)+1;
-
 	cout << "Top Model Predictors" << endl;
 	cout << top_model << endl;
 
-
-	//ProfilerStop();
 	return Rcpp::List::create(
 			Rcpp::Named("top_model") = top_model,
 			Rcpp::Named("prob") = prob,
 			Rcpp::Named("prob_trace") = prob_trace,
 			Rcpp::Named("mu_ya_trace") = mu_ya_trace,
 			Rcpp::Named("mu_ya") = mu_ya,
+			Rcpp::Named("mu_B_trace") = mu_B_trace,
 			Rcpp::Named("mu_B") = mu_B,
 			Rcpp::Named("sigma2_B") = sigma2_B,
 			Rcpp::Named("b_trace") = b_trace,

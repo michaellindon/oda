@@ -6,7 +6,7 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter){
+List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd,NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter){
 
 	//Define Variables//
 	int niter=Rcpp::as<int >(rniter);
@@ -14,72 +14,50 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
-	double b;
-	double phi;
-	Mat<double> xag;
-	Mat<double> xaxa(p,p);
-	Mat<double> xoxo(p,p);
-	Mat<double> D(p,p);
-	Mat<double> Lam(p,p);
-	Mat<double> Lamg(p,p);
-	Mat<double> L(na,na);
-	Mat<double> xog;
+
+	//Create Data//
+	arma::mat xo(rxo.begin(), no, p, false);
+	arma::mat xa(rxa.begin(), na, p, false);
+	arma::colvec d(rd.begin(),rd.size(), false);
+	arma::colvec lam(rlam.begin(),rlam.size(), false);
+	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
+	arma::colvec yo(ryo.begin(), ryo.size(), false);
+	yo-=mean(yo);
+
+	//Pre-Processing//
 	Mat<double> Ino=eye(no,no);
 	Mat<double> Ina=eye(na,na);
-	Mat<double> P1(no,no);
-	Mat<double> Px(no,no);
+	Mat<double> xoyo=xo.t()*yo;
+	Col<double> xaya(p);
+	Mat<double> xat=xa.t();
+	Mat<double> D=diagmat(d);
+	Mat<double> Lam=diagmat(lam);
+	Col<double> priorodds=priorprob/(1-priorprob);
+	Col<double> odds=priorodds;
+	Col<double> ldl=sqrt(lam/(d+lam));
+	Col<double> dli=1/(d+lam);
+	Col<double> prob(p,fill::ones);	prob*=0.5;
+	Col<double> ya(na);
+	Col<double> Z(na);
+	Col<double> Bols(p);
+	Col<double> B(p,fill::zeros);
+	double b;
+	double phi=1;
+
+	//Create Sub Matrices//
+	Col<uword> gamma(p,fill::ones);
+	Col<uword> inc_indices(p,fill::ones);
+	Col<double> Bg;
+	Mat<double> xog(no,p);
+	Mat<double> xag(na,p);
+	Mat<double> Lamg(p,p);
+
+	//Create Trace Matrices//
 	Mat<double> ya_mcmc(na,niter,fill::zeros);
 	Mat<double> prob_mcmc(p,niter,fill::zeros);
 	Mat<double> B_mcmc(p,niter,fill::zeros);
 	Mat<uword>  gamma_mcmc(p,niter,fill::ones);
 	Col<double> phi_mcmc(niter,fill::ones);
-	Col<double> one(no,fill::ones);
-	Col<double> ya(na);
-	Col<double> Z(na);
-	Col<double> d(p);
-	Col<double> yoc(no);
-	Col<double> Bols(p);
-	Col<double> B(p,fill::zeros);
-	Col<double> Bg;
-	Col<double> xoyo(p);
-	Col<double> xaya(p);
-	Col<double> prob(p,fill::ones);
-	Col<double> priorodds(p);
-	Col<double> odds(p);
-	Col<double> ldl(p);
-	Col<double> dli(p);
-	Col<uword> gamma(p,fill::ones);
-	Col<uword> inc_indices(p,fill::ones);
-
-
-	//Copy RData Into Matrix Classes//
-	arma::mat xo(rxo.begin(), no, p, false);
-	arma::mat xa(rxa.begin(), na, p, false);
-	arma::colvec yo(ryo.begin(), ryo.size(), false);
-	arma::colvec lam(rlam.begin(),rlam.size(), false);
-	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
-
-	//Create Matrices//
-	xoyo=xo.t()*yo;
-	xoxo=xo.t()*xo;
-	xaxa=xa.t()*xa;
-	D=xaxa+xoxo;
-	d=D.diag();
-	priorodds=priorprob/(1-priorprob);
-	Lam=diagmat(lam);
-	ldl=sqrt(lam/(d+lam));
-	dli=1/(d+lam);
-	P1=one*(one.t()*one).i()*one.t();
-	Px=xo*(xoxo).i()*xo.t();
-	yoc=(Ino-P1)*yo;
-
-
-	//Initialize Parameters at MLE//
-
-	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
-	Bols=(xoxo).i()*xo.t()*yo;
-	ya=xa*Bols;
-	B=Bols;
 
 	//Run Gibbs Sampler//
 	ya_mcmc.col(0)=ya;
@@ -91,7 +69,7 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	for (int t = 1; t < niter; ++t)
 	{
 
-		//Form Submatrices
+		//Form Submatrices//
 		inc_indices=find(gamma);
 		Bg=B.elem(inc_indices);
 		Lamg=Lam.submat(inc_indices,inc_indices);
@@ -99,13 +77,13 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 		xog=xo.cols(inc_indices);
 
 		//Draw Phi//
-		b=0.5*dot(yoc-xog*Bg,yoc-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
+		b=0.5*dot(yo-xog*Bg,yo-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
 		phi=R::rgamma((double)0.5*(no+sum(gamma)-1),(1/b)); //rgamma uses scale
 
 		//Draw Ya//
 		for (int i = 0; i < na; ++i) Z(i)=R::rnorm(0,1);
 		ya=xag*Bg+sqrt(1/phi)*Z;
-		xaya=xa.t()*ya;
+		xaya=xat*ya;
 
 		for(int i=0; i<p; ++i){
 			Bols(i)=(1/d(i))*(xoyo(i)+xaya(i));
@@ -116,9 +94,9 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 		for(int i=0; i<p; ++i)  if(prob(i)!=prob(i)) prob(i)=1;   //Catch NaN
 
 
+		//Draw Gamma, Beta//
 		for (int i = 0; i < p; ++i)
 		{
-			//Draw Gamma, Beta//
 			if(R::runif(0,1)<prob(i)){
 				gamma(i)=1;
 				Z(i)=R::rnorm(0,1);
@@ -136,16 +114,17 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 		ya_mcmc.col(t)=ya;
 		phi_mcmc(t)=phi;
 	}
+
+	//Report Runtime//
 	auto end = std::chrono::steady_clock::now();
 	std::chrono::duration<double> elapsed=end-start;
-
 	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
 	std::cout <<  elapsed.count()/niter << " sec - Per Iteration (avg)" << std::endl;
 
 
 	return Rcpp::List::create(
 			Rcpp::Named("B_mcmc") = B_mcmc,
-			Rcpp::Named("B") = B,
+			Rcpp::Named("B") = mean(B_mcmc.cols(burnin-1,niter-1),1),
 			Rcpp::Named("phi_mcmc") = phi_mcmc,
 			Rcpp::Named("prob_mcmc") = prob_mcmc,
 			Rcpp::Named("prob") = mean(prob_mcmc.cols(burnin-1,niter-1),1),
