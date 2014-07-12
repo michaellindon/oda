@@ -33,7 +33,7 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 	Mat<double> D=diagmat(d);
 	Mat<double> Lam=diagmat(lam);
 	Col<double> logpriorodds=log(priorprob/(1-priorprob));
-	Col<double> odds=priorodds;
+	Col<double> odds=logpriorodds;
 	Col<double> logldl=0.5*log(lam/(d+lam));
 	Col<double> dli=1/(d+lam);
 	Col<double> prob(p,fill::ones);	prob*=0.5;
@@ -45,6 +45,7 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 	Col<double> Bols(p);
 	Col<double> B(p,fill::zeros);
 	double phi=1;
+	double Fa;
 
 	//Create Sub Matrices//
 	Col<uword> gamma(p,fill::ones);
@@ -63,7 +64,6 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 
 	//Run Gibbs Sampler//
 	ya_mcmc.col(0)=ya;
-	phi_mcmc(0)=phi;
 	gamma_mcmc.col(0)=gamma;
 	prob_mcmc.col(0)=prob;
 	B_mcmc.col(0)=B;
@@ -84,7 +84,8 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 		for (int i = 0; i < no; ++i)
 		{
 			if(bit(i)==1){
-				yo(i)=mu_yo(i)+R::qnorm(R::pnorm(-mu_yo(i),0,1,1,0)+U(i)*(1-R::pnorm(-mu_yo(i),0,1,1,0)),0,1,1,0);
+				Fa=R::pnorm(-mu_yo(i),0,1,1,0);
+				yo(i)=mu_yo(i)+R::qnorm(Fa+U(i)*(1-Fa),0,1,1,0);
 			}else{
 				yo(i)=mu_yo(i)+R::qnorm(U(i)*R::pnorm(-mu_yo(i),0,1,1,0),0,1,1,0);
 			}
@@ -139,7 +140,6 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 	return Rcpp::List::create(
 			Rcpp::Named("B_mcmc") = B_mcmc,
 			Rcpp::Named("B") = mean(B_mcmc.cols(burnin-1,niter-1),1),
-			Rcpp::Named("phi_mcmc") = phi_mcmc,
 			Rcpp::Named("prob_mcmc") = prob_mcmc,
 			Rcpp::Named("prob") = mean(prob_mcmc.cols(burnin-1,niter-1),1),
 			Rcpp::Named("gamma_mcmc") = gamma_mcmc,
