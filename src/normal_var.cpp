@@ -32,7 +32,7 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 	Mat<double> Inc=eye(no+na,no+na);
 	Mat<double> xc=join_cols(xo,xa);
 	Mat<double> xat=xa.t();
-	Mat<double> xoyo=xo.t()*yo;
+	Col<double> xoyo=xo.t()*yo;
 	Mat<double> D=diagmat(d);
 	Mat<double> Lam=diagmat(lam);
 	Col<double> mu_ya(na,fill::zeros);
