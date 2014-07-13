@@ -56,15 +56,15 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 	Mat<double> Lamg(p,p);
 
 	//Create Trace Matrices//
-	Mat<double> yo_mcmc(no,niter,fill::zeros);
-	Mat<double> ya_mcmc(na,niter,fill::zeros);
+	//Mat<double> yo_mcmc(no,niter,fill::zeros);
+	//Mat<double> ya_mcmc(na,niter,fill::zeros);
 	Mat<double> prob_mcmc(p,niter,fill::zeros);
 	Mat<double> B_mcmc(p,niter,fill::zeros);
-	Mat<uword>  gamma_mcmc(p,niter,fill::ones);
+	//Mat<uword>  gamma_mcmc(p,niter,fill::ones);
 
 	//Run Gibbs Sampler//
-	ya_mcmc.col(0)=ya;
-	gamma_mcmc.col(0)=gamma;
+	//ya_mcmc.col(0)=ya;
+	//gamma_mcmc.col(0)=gamma;
 	prob_mcmc.col(0)=prob;
 	B_mcmc.col(0)=B;
 	auto start = std::chrono::steady_clock::now();
@@ -124,10 +124,10 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 
 		//Store Draws//
 		B_mcmc.col(t)=B;
-		gamma_mcmc.col(t)=gamma;
+	//	gamma_mcmc.col(t)=gamma;
 		prob_mcmc.col(t)=prob;
-		yo_mcmc.col(t)=yo;
-		ya_mcmc.col(t)=ya;
+	//	yo_mcmc.col(t)=yo;
+	//	ya_mcmc.col(t)=ya;
 	}
 
 	//Report Runtime//
@@ -141,9 +141,9 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 			Rcpp::Named("B_mcmc") = B_mcmc,
 			Rcpp::Named("B") = mean(B_mcmc.cols(burnin-1,niter-1),1),
 			Rcpp::Named("prob_mcmc") = prob_mcmc,
-			Rcpp::Named("prob") = mean(prob_mcmc.cols(burnin-1,niter-1),1),
-			Rcpp::Named("gamma_mcmc") = gamma_mcmc,
-			Rcpp::Named("yo_mcmc") = yo_mcmc,
-			Rcpp::Named("ya_mcmc") = ya_mcmc
+			Rcpp::Named("prob") = mean(prob_mcmc.cols(burnin-1,niter-1),1)
+	//		Rcpp::Named("gamma_mcmc") = gamma_mcmc,
+	//		Rcpp::Named("yo_mcmc") = yo_mcmc,
+	//		Rcpp::Named("ya_mcmc") = ya_mcmc
 			) ;
 }
