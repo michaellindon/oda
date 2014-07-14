@@ -6,7 +6,7 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP ralpha){
+List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP ralpha){
 
 	//Define Variables//
 	int niter=Rcpp::as<int >(rniter);
@@ -14,71 +14,50 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
+
+	//Create Data//
+	arma::mat xo(rxo.begin(), no, p, false);
+	arma::mat xa(rxa.begin(), na, p, false);
+	arma::colvec d(rd.begin(),rd.size(), false);
+	arma::colvec lam(rlam.begin(),rlam.size(), false);
+	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
+	arma::colvec yo(ryo.begin(), ryo.size(), false);
+	yo-=mean(yo);
+
+	//Pre-Processing//
+	Col<double> xoyo=xo.t()*yo;
+	Col<double> xaya(p);
+	Mat<double> xat=xa.t();
+	Mat<double> D=diagmat(d);
+	Mat<double> Lam=diagmat(lam);
+	Col<double> priorodds=priorprob/(1-priorprob);
+	Col<double> odds=priorodds;
+	Col<double> ldl=sqrt(lam/(d+lam));
+	Col<double> dli=1/(d+lam);
+	Col<double> prob(p,fill::ones);	prob*=0.5;
+	Col<double> ya(na);
+	Col<double> Z(na);
+	Col<double> Bols(p);
+	Col<double> B(p,fill::zeros);
 	double b;
-	double phi;
+	double phi=1;
 	double alpha=Rcpp::as<double >(ralpha);
-	Mat<double> xag;
-	Mat<double> xaxa(p,p);
-	Mat<double> xoxo(p,p);
-	Mat<double> xoxog(p,p);
-	Mat<double> D(p,p);
-	Mat<double> Lam(p,p);
+
+	//Create Sub Matrices//
+	Col<uword> gamma(p,fill::ones);
+	Col<uword> inc_indices(p,fill::ones);
+	Col<double> Bg;
+	Mat<double> xog(no,p);
+	Mat<double> xag(na,p);
 	Mat<double> Lamg(p,p);
-	Mat<double> L(na,na);
-	Mat<double> xog;
-	Mat<double> P1(no,no);
-	Mat<double> Px(no,no);
+
+	//Create Trace Matrices//
 	Mat<double> ya_mcmc(na,niter,fill::zeros);
 	Mat<double> prob_mcmc(p,niter,fill::zeros);
 	Mat<double> B_mcmc(p,niter,fill::zeros);
-	Mat<double> lam_mcmc(p,niter,fill::zeros);
 	Mat<uword>  gamma_mcmc(p,niter,fill::ones);
 	Col<double> phi_mcmc(niter,fill::ones);
-	Col<double> one(no,fill::ones);
-	Col<double> ya(na);
-	Col<double> Z(na);
-	Col<double> d(p);
-	Col<double> yoc(no);
-	Col<double> Bols(p);
-	Col<double> B(p);
-	Col<double> Bg;
-	Col<double> xoyo(p);
-	Col<double> prob(p,fill::ones);
-	Col<double> priorodds(p);
-	Col<double> odds(p);
-	Col<double> ldl(p);
-	Col<double> dli(p);
-	Col<uword> gamma(p,fill::ones);
-	Col<uword> inc_indices(p,fill::ones);
-
-
-	//Copy RData Into Matrix Classes//
-	arma::mat xo(rxo.begin(), no, p, false);
-	arma::mat xa(rxa.begin(), na, p, false);
-	arma::colvec yo(ryo.begin(), ryo.size(), false);
-	arma::colvec lam(rlam.begin(),rlam.size(), false);
-	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
-
-
-	//Create Matrices//
-	xoyo=xo.t()*yo;
-	xoxo=xo.t()*xo;
-	xaxa=xa.t()*xa;
-	D=xaxa+xoxo;
-	d=D.diag();
-	priorodds=priorprob/(1-priorprob);
-	ldl=sqrt(lam/(d+lam));
-	dli=1/(d+lam);
-	P1=one*(one.t()*one).i()*one.t();
-	Px=xo*(xoxo).i()*xo.t();
-	yoc=yo-mean(yo);
-
-
-	//Initialize Parameters at MLE//
-	phi=1;
-	Bols=(xoxo).i()*xo.t()*yo;
-	ya=xa*Bols;
-	B=Bols;
+	Mat<double> lam_mcmc(p,niter,fill::zeros);
 
 	//Run Gibbs Sampler//
 	ya_mcmc.col(0)=ya;
@@ -98,10 +77,9 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		Lamg=Lam.submat(inc_indices,inc_indices);
 		xag=xa.cols(inc_indices);
 		xog=xo.cols(inc_indices);
-		xoxog=xoxo.submat(inc_indices,inc_indices);
 
 		//Draw Phi//
-		b=0.5*dot(yoc-xog*Bg,yoc-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
+		b=0.5*dot(yo-xog*Bg,yo-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
 		phi=R::rgamma((double)0.5*(no+sum(gamma)-1),(1/b)); //rgamma uses scale
 
 		//Draw Ya//
