@@ -26,8 +26,6 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	Mat<double> Lamg(p,p);
 	Mat<double> L(na,na);
 	Mat<double> xog;
-	Mat<double> Ino=eye(no,no);
-	Mat<double> Ina=eye(na,na);
 	Mat<double> P1(no,no);
 	Mat<double> Px(no,no);
 	Mat<double> ya_mcmc(na,niter,fill::zeros);
@@ -73,11 +71,11 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	dli=1/(d+lam);
 	P1=one*(one.t()*one).i()*one.t();
 	Px=xo*(xoxo).i()*xo.t();
-	yoc=(Ino-P1)*yo;
+	yoc=yo-mean(yo);
 
 
 	//Initialize Parameters at MLE//
-	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
+	phi=1;
 	Bols=(xoxo).i()*xo.t()*yo;
 	ya=xa*Bols;
 	B=Bols;
@@ -109,7 +107,6 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		//Draw Ya//
 		for (int i = 0; i < na; ++i) Z(i)=R::rnorm(0,1);
 		ya=xag*Bg+sqrt(1/phi)*Z;
-		//ya=xag*(xoxog+Lamg).i()*xog.t()*yo+chol((Ina+xag*(xoxog+Lamg).i()*xag.t())/phi).t()*Z;
 
 
 		Bols=(1/d)%(xoyo+xa.t()*ya);

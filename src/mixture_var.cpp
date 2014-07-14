@@ -28,9 +28,6 @@ List mixture_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeri
 	yo-=mean(yo);
 
 	//Pre-Processing//
-	Mat<double> Ino=eye(no,no);
-	Mat<double> Ina=eye(na,na);
-	Mat<double> Inc=eye(no+na,no+na);
 	Mat<double> xc=join_cols(xo,xa);
 	Mat<double> xat=xa.t();;
 	Col<double> xoyo=xo.t()*yo;

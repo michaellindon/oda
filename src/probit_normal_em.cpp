@@ -23,10 +23,6 @@ List probit_normal_em(NumericVector rbit, NumericMatrix rxo, NumericMatrix rxa, 
 	arma::colvec bit(rbit.begin(), rbit.size(), false);
 
 	//Pre-Processing//
-	Mat<double> Ino=eye(no,no);
-	Mat<double> Ina=eye(na,na);
-	//  Col<double> B=solve(xoxo+no*Ina,xoyo); //Initialize at Ridge
-	// Col<double> B=(1/no)*xoyo-(1/(no*no))*xo.t()*solve(Ino+(1/no)*xo*xo.t(),xo*xoyo);
 	Col<double> B(p,fill::zeros);
 	Col<double> Bols=B;
 	Col<double> mu_yo=xo*B;

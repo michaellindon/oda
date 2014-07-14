@@ -25,8 +25,6 @@ List normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numer
 	yo-=mean(yo);
 
 	//Pre-Processing//
-	Mat<double> Ino=eye(no,no);
-	Mat<double> Ina=eye(na,na);
 	Col<double> xoyo=xo.t()*yo;
 	Col<double> xaya(p);
 	Mat<double> xat=xa.t();

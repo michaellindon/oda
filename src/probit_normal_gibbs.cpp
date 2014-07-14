@@ -24,8 +24,6 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 	arma::colvec bit(rbit.begin(), rbit.size(), false);
 
 	//Pre-Processing//
-	Mat<double> Ino=eye(no,no);
-	Mat<double> Ina=eye(na,na);
 	Mat<double> xot=xo.t();
 	Mat<double> xat=xa.t();
 	Col<double> xoyo(p);
