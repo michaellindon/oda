@@ -1,4 +1,3 @@
-#include <chrono>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -28,9 +27,9 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Col<double> xoyo=xo.t()*yo;
 	Col<double> B(p,fill::zeros);
 	Col<double> Bols=B;
-	Col<double> mu_ya=xa*B;
+	Col<double> mu_ya(na);
 	Mat<double> xat=xa.t();
-	Col<double> xamu_ya=xat*mu_ya;
+	Col<double> xamu_ya(p);
 	Mat<double> Lam=diagmat(lam);
 	Col<double> prob=priorprob;
 	Col<double> priorodds=priorprob/(1-priorprob);
@@ -66,7 +65,6 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	gamma_trace.col(0)=gamma;
 	prob_trace.col(0)=prob;
 	int t=1;
-	auto start = std::chrono::steady_clock::now();
 	do{
 		//Form Submatrices
 		inc_indices=find(gamma);
@@ -115,11 +113,6 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		t=t+1;
 	} while(deltaP>0.0000001 || deltaB>0.000000001);
 
-	//Report Runtime//
-	auto end = std::chrono::steady_clock::now();
-	std::chrono::duration<double> elapsed=end-start;
-	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
-	std::cout <<  elapsed.count()/(t-1) << " sec - Per Iteration (avg)" << std::endl;
 
 	//Resize Trace Matrices//
 	gamma_trace.resize(p,t);
