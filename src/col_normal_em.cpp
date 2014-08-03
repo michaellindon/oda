@@ -5,70 +5,61 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob){
+List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
-	int t=1;
+
+
+	//Create Data//
+	arma::mat xo(rxo.begin(), no, p, false);
+	arma::mat xa(rxa.begin(), na, p, false);
+	arma::colvec d(rd.begin(),rd.size(), false);
+	arma::colvec lam(rlam.begin(),rlam.size(), false);
+	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
+	arma::colvec yo(ryo.begin(), ryo.size(), false);
+	yo-=mean(yo);
+
+	//Pre-Processing//
+	Col<double> xoyo=xo.t()*yo;
+	Mat<double> xoxo=xo.t()*xo;
+	Col<double> B(p);
+	Col<double> Bols=B;
+	Col<double> mu_ya(na);
+	Mat<double> xat=xa.t();
+	Col<double> xamu_ya(p);
+	Mat<double> Lam=diagmat(lam);
+	Col<double> prob=priorprob;
+	Col<double> priorodds=priorprob/(1-priorprob);
+	Col<double> odds=priorodds;
+	Col<double> ldl=sqrt(lam/(d+lam));
+	Col<double> dli=1/(d+lam);
+
 	double a=(double)0.5*(no+na-1);
 	double b;
 	double delta;
-	Mat<double> xag;
-	Mat<double> xaxa(p,p);
-	Mat<double> xoxo(p,p);
+	double yoyo=dot(yo,yo);
+
+	//Create Submatrices
+	Col<uword> gamma(p,fill::zeros);
+	Col<uword> inc_indices(p);
+	Mat<double> xog(no,p);
 	Mat<double> xoxog(p,p);
-	Mat<double> D(p,p);
-	Mat<double> Lam(p,p);
+	Mat<double> xag(na,p);
 	Mat<double> Lamg(p,p);
 	Mat<double> E(na,na);
-	Mat<double> xog;
-	Mat<double> Ino=eye(no,no);
-	Mat<double> Ina=eye(na,na);
-	Mat<double> P1(no,no);
-	Mat<double> prob_trace(p,1000,fill::zeros);
-	Mat<uword>  gamma_trace(p,1000,fill::ones);
-	Col<double> one(no,fill::ones);
-	Col<double> mu(na);
-	Col<double> ya(na);
-	Col<double> d(p);
-	Col<double> Bols(p);
-	Col<double> xoyo(p);
-	Col<double> prob(p,fill::ones);
-	Col<double> priorodds(p);
-	Col<double> odds(p,fill::ones);
-	Col<double> ldl(p);
-	Col<double> dli(p);
-	Col<uword> gamma(p,fill::zeros);
-	Col<uword> inc_indices(p,fill::ones);
-
-	//Copy RData Into Matrix Classes//
-	arma::mat xo(rxo.begin(), no, p, false);
-	arma::mat xa(rxa.begin(), na, p, false);
-	arma::colvec yo(ryo.begin(), ryo.size(), false);
-	arma::colvec lam(rlam.begin(),rlam.size(), false);
-	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
 
 	//Create Matrices//
-	xoyo=xo.t()*yo;
-	xoxo=xo.t()*xo;
-	xaxa=xa.t()*xa;
-	D=xaxa+xoxo;
-	d=D.diag();
-	P1=one*(one.t()*one).i()*one.t();
-	prob=priorprob;
-	Lam=diagmat(lam);
-	priorodds=priorprob/(1-priorprob);
-	ldl=sqrt(lam/(d+lam));
-	dli=1/(d+lam);
+	Mat<double> prob_trace(p,1000,fill::zeros);
+	Mat<uword>  gamma_trace(p,1000,fill::ones);
 
-	//Randomize Initial Gammas//
-	for (int i = 0; i < p; ++i) if(R::runif(0,1)>0.5) gamma(i)=1;
-
-	//Run Gibbs Sampler//
+	//Run EM Algorithm//
+	cout << "Beginning EM Algorithm" << endl;
 	gamma_trace.col(0)=gamma;
 	prob_trace.col(0)=prob;
+	int t=1;
 	do{
 		//Form Submatrices
 		inc_indices=find(gamma);
@@ -77,18 +68,23 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		xog=xo.cols(inc_indices);
 		xoxog=xoxo.submat(inc_indices,inc_indices);
 
+		B=solve(xoxog+Lamg,xog.t()*yo);
+
 		//E-Step//
 		//Phi//
-		b=0.5*dot(yo,(Ino-P1-xog*(xoxog+Lamg).i()*xog.t())*yo);
+		b=0.5*(yoyo - dot(B,(xoxog+Lamg)*B));
 
 		//Ya//
-		mu=xag*(xoxog+Lamg).i()*xog.t()*yo;
-		E=Ina+xag*(xoxog+Lamg).i()*xag.t();
+		mu_ya=xag*B;
+		//	E=Ina+xag*(xoxog+Lamg).i()*xag.t(); Identity Matrix requires a lot of memory to store
+		E=xag*(xoxog+Lamg).i()*xag.t();
+		for(int i=0; i<p; ++i) E(i,i)+=1;
 
+		xamu_ya=xat*mu_ya;
 		//Gamma//
 		for (int i = 0; i < p; ++i)
 		{
-			Bols(i)=(1/d(i))*(xoyo(i)+dot(xa.col(i),mu));
+			Bols(i)=(1/d(i))*(xoyo(i)+xamu_ya(i));
 			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*(a/b)*dli(i)*d(i)*d(i)*Bols(i)*Bols(i)+0.5*dli(i)*dot(xa.col(i),E*xa.col(i)));
 			prob(i)=odds(i)/(1+odds(i));
 			//if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
@@ -109,11 +105,19 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		t=t+1;
 	} while(delta>0.0001);
+	cout << "EM Algorithm Complete" << endl;
 
+	//Report Top Model//
+	Col<uword> top_model=find(gamma)+1;
+	cout << "Top Model Predictors" << endl;
+	cout << top_model << endl;
+
+	//Resize Trace Matrices
 	gamma_trace.resize(p,t);
 	prob_trace.resize(p,t);
 
 	return Rcpp::List::create(
+			Rcpp::Named("top_model")=top_model,
 			Rcpp::Named("prob") = prob,
 			Rcpp::Named("prob_trace") = prob_trace,
 			Rcpp::Named("gamma") = gamma,
