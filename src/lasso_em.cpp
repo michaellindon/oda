@@ -24,9 +24,9 @@ List lasso_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVe
 
 	//Pre-Processing//
 	Col<double> xoyo=xo.t()*yo;
-	Col<double> B(p,fill::ones);
-	Col<double> Babs=B;
-	Col<double> ya=xa*B;
+	Col<double> B=xoyo/no;
+	Col<double> Babs=abs(B);
+	Col<double> ya(na);
 	Mat<double> xat=xa.t();
 	Col<double> xaya(p);
 	Col<double> xcyc(p);
@@ -34,6 +34,7 @@ List lasso_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVe
 	double deltaB;
 	double deltaphi;
 	double phi=1;
+//	double phi=no/dot(yo-xo*B,yo-xo*B);
 	double lp;
 
 	//Create Submatrices
@@ -41,56 +42,63 @@ List lasso_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVe
 	Mat<double> xag(na,p);
 	Col<double> Bg(p,fill::zeros);
 
-
 	//Create Trace Matrices
-	Mat<double> B_trace(p,10000);
-	Col<double> phi_trace(10000);
-	Col<double> lpd_trace(10000);
+	Mat<double> B_trace(p,20000);
+	Col<double> phi_trace(20000);
+	Col<double> lpd_trace(20000);
 
 	//Run EM Algorithm//
-	int t=1;
-	B_trace.col(0)=B;
-	phi_trace(0)=phi;
+	cout << "Beginning EM Algorithm" << endl;
+	int t=0;
+	B_trace.col(t)=B;
+	phi_trace(t)=phi;
+	lpd_trace(t)=log_posterior_density(no,p,lasso,yo,xo,B,phi);
 	do{
+		t=t+1;
+
 		//Form Submatrices
 		inc_indices=find(B);
 		Bg=B.elem(inc_indices);
 		xag=xa.cols(inc_indices);
 
+		//E Step
 		ya=xag*Bg;
-
 		xcyc=xoyo+xat*ya;
 		lp=sqrt(lasso/phi);
-		Babs=abs(B);
-		for(int i=0; i<p; ++i){
-			B(i)=Babs(i)/(d(i)*Babs(i)+lp)*xcyc(i);
-		}
-		phi=(no+na+p-3)/(yoyo+dot(ya,ya)-dot(xcyc,B));
 
+//		Babs=abs(B);
+		//CEM
+//		phi=(double)(no+na-3)/(dot(yo-xo*B,yo-xo*B)+dot(ya-xa*B,ya-xa*B)+lp*sum(Babs));
+//		phi=(no+na+p-3)/(dot(yo,yo)+dot(ya,ya)-dot(xcyc,B));
+
+		Babs=abs(B);
+//		B=(Babs/(d%Babs+lp))%xcyc;
+		for(int i=0; i<p; ++i){
+			B(i)=(Babs(i)/(Babs(i)*d(i)+lp))*xcyc(i);
+		}
+
+//		phi=(double)(no+na+p-3)/(na+dot(yo-xo*B,yo-xo*B)+dot(ya-xa*B,ya-xa*B)+lp*sum(abs(B)));
+
+
+		phi=(no+na+p-3)/((na/phi)+dot(yo,yo)+dot(ya,ya)-dot(xcyc,B));
+//		phi=(double)(no+na+p-3)/(dot(yo,yo)+dot(ya,ya)-sum((Babs/(d%Babs+lp))%xcyc%xcyc));
 
 		//Store Values//
 		B_trace.col(t)=B;
 		phi_trace(t)=phi;
-		lpd_trace(t-1)=log_posterior_density(no,p,lasso,yo,xo,B,phi);
+		lpd_trace(t)=log_posterior_density(no,p,lasso,yo,xo,B,phi);
 
 		deltaB=dot(B_trace.col(t)-B_trace.col(t-1),B_trace.col(t)-B_trace.col(t-1));
 		deltaphi=phi_trace(t)-phi_trace(t-1);
-		t=t+1;
-	} while((deltaB>0.001 || deltaphi>0.001) && t<10000);
-
+	} while((deltaB>0.00001 || deltaphi>0.001) && t<19999);
+	cout << "EM Algorithm Converged in " << t << " Iterations" << endl;
 
 	//Resize Trace Matrices//
 	B_trace.resize(p,t);
 	phi_trace.resize(t);
-	lpd_trace.resize(t-1);
-
-	//Report Top Model//
-	Col<uword> top_model=find(B)+1;
-	cout << "Top Model Predictors" << endl;
-	cout << top_model << endl;
+	lpd_trace.resize(t);
 
 	return Rcpp::List::create(
-			Rcpp::Named("top_model")=top_model,
 			Rcpp::Named("B") = B,
 			Rcpp::Named("B_trace") = B_trace,
 			Rcpp::Named("phi") = phi,
@@ -106,7 +114,7 @@ List lasso_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVe
 double log_posterior_density(int no, int p, double lasso, const Col<double>& yo, const Mat<double>& xo, const Col<double>& B,double phi){
 
 	double lpd;
-	lpd=0.5*(no-1)*log(phi/(2*M_PI))-0.5*phi*dot(yo-xo*B,yo-xo*B)+0.5*p*log(phi*lasso)-sqrt(phi*lasso)*sum(abs(B))-log(phi);
+	lpd=(double)0.5*((double)no-1)*log(phi/(2*M_PI))-0.5*phi*dot(yo-xo*B,yo-xo*B)+0.5*(double)p*log(phi*lasso)-sqrt(phi*lasso)*sum(abs(B))-log(phi);
 	return(lpd);
 
 }
