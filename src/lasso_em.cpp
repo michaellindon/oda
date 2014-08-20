@@ -24,6 +24,7 @@ List lasso_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVe
 
 	//Pre-Processing//
 	Col<double> xoyo=xo.t()*yo;
+	//	Col<double> B(p,fill::randn);
 	Col<double> B=xoyo/no;
 	Col<double> Babs=abs(B);
 	Col<double> ya(na);
@@ -33,8 +34,8 @@ List lasso_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVe
 	double yoyo=dot(yo,yo);
 	double deltaB;
 	double deltaphi;
-	double phi=1;
-//	double phi=no/dot(yo-xo*B,yo-xo*B);
+	double phi=no/dot(yo-xo*B,yo-xo*B);
+	//double phi=no/yoyo;
 	double lp;
 
 	//Create Submatrices
@@ -56,32 +57,24 @@ List lasso_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVe
 	do{
 		t=t+1;
 
-		//Form Submatrices
-		inc_indices=find(B);
-		Bg=B.elem(inc_indices);
-		xag=xa.cols(inc_indices);
+		/*//Form Submatrices
+		  inc_indices=find(B);
+		  Bg=B.elem(inc_indices);
+		  xag=xa.cols(inc_indices);*/
 
 		//E Step
-		ya=xag*Bg;
+		ya=xa*B;
 		xcyc=xoyo+xat*ya;
 		lp=sqrt(lasso/phi);
 
-//		Babs=abs(B);
-		//CEM
-//		phi=(double)(no+na-3)/(dot(yo-xo*B,yo-xo*B)+dot(ya-xa*B,ya-xa*B)+lp*sum(Babs));
-//		phi=(no+na+p-3)/(dot(yo,yo)+dot(ya,ya)-dot(xcyc,B));
-
 		Babs=abs(B);
-//		B=(Babs/(d%Babs+lp))%xcyc;
 		for(int i=0; i<p; ++i){
 			B(i)=(Babs(i)/(Babs(i)*d(i)+lp))*xcyc(i);
 		}
 
-//		phi=(double)(no+na+p-3)/(na+dot(yo-xo*B,yo-xo*B)+dot(ya-xa*B,ya-xa*B)+lp*sum(abs(B)));
 
 
 		phi=(no+na+p-3)/((na/phi)+dot(yo,yo)+dot(ya,ya)-dot(xcyc,B));
-//		phi=(double)(no+na+p-3)/(dot(yo,yo)+dot(ya,ya)-sum((Babs/(d%Babs+lp))%xcyc%xcyc));
 
 		//Store Values//
 		B_trace.col(t)=B;
@@ -90,7 +83,7 @@ List lasso_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVe
 
 		deltaB=dot(B_trace.col(t)-B_trace.col(t-1),B_trace.col(t)-B_trace.col(t-1));
 		deltaphi=phi_trace(t)-phi_trace(t-1);
-	} while((deltaB>0.00001 || deltaphi>0.001) && t<19999);
+	} while((deltaB>0.00001 || deltaphi>0.00001) && t<19999);
 	cout << "EM Algorithm Converged in " << t << " Iterations" << endl;
 
 	//Resize Trace Matrices//
