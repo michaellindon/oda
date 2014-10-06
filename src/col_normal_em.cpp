@@ -4,13 +4,16 @@
 using namespace Rcpp;
 using namespace arma;
 
+double log_posterior_density_colcn(int no,const Mat<double>& Lamg, const Mat<double>& xoxog, const Col<uword>& gamma,const Col<double>& priorodds, double b);
+
 // [[Rcpp::export]]
-List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob){
+List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rselection){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
+	int selection=Rcpp::as<int >(rselection);
 
 
 	//Create Data//
@@ -37,7 +40,7 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	Col<double> ldl=sqrt(lam/(d+lam));
 	Col<double> dli=1/(d+lam);
 
-	double a=(double)0.5*(no+na-1);
+	double a=(double)0.5*(no-1);
 	double b;
 	double delta;
 	double yoyo=dot(yo,yo);
@@ -54,6 +57,23 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	//Create Matrices//
 	Mat<double> prob_trace(p,1000,fill::zeros);
 	Mat<uword>  gamma_trace(p,1000,fill::ones);
+	Col<double> lpd_trace(1000);
+
+	//Create Initial Gammas//
+	//Forward Selection//
+	if(selection==0) gamma.fill(0);
+	
+	//Backward Selection
+	if(selection==1) gamma.fill(1);
+
+	//Randomize Selection//
+	if(selection==2){
+	double init_prob=R::runif(0,1);
+	for(int i=0; i<p; ++i){
+		if(R::runif(0,1)<init_prob) gamma(i)=1;
+	}
+	}
+
 
 	//Run EM Algorithm//
 	cout << "Beginning EM Algorithm" << endl;
@@ -73,6 +93,7 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		//E-Step//
 		//Phi//
 		b=0.5*(yoyo - dot(B,(xoxog+Lamg)*B));
+		lpd_trace(t-1)=log_posterior_density_colcn( no, Lamg, xoxog, gamma, priorodds,b);
 
 		//Ya//
 		mu_ya=xag*B;
@@ -115,13 +136,19 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	//Resize Trace Matrices
 	gamma_trace.resize(p,t);
 	prob_trace.resize(p,t);
+	lpd_trace.resize(t-1);
 
 	return Rcpp::List::create(
 			Rcpp::Named("top_model")=top_model,
 			Rcpp::Named("prob") = prob,
 			Rcpp::Named("prob_trace") = prob_trace,
 			Rcpp::Named("gamma") = gamma,
-			Rcpp::Named("gamma_trace") = gamma_trace
+			Rcpp::Named("gamma_trace") = gamma_trace,
+			Rcpp::Named("lpd_trace") = lpd_trace
 			) ;
 
+}
+
+double log_posterior_density_colcn(int no,const Mat<double>& Lamg, const Mat<double>& xoxog, const Col<uword>& gamma,const Col<double>& priorodds, double b){
+     return(0.5*log(det(Lamg))-0.5*log(det(Lamg+xoxog))-0.5*(no-1)*log(b)+sum(gamma%log(priorodds)));
 }
