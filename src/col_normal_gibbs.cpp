@@ -57,6 +57,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	arma::colvec yo(ryo.begin(), ryo.size(), false);
 	arma::colvec lam(rlam.begin(),rlam.size(), false);
 	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
+	yo-=mean(yo);
 
 
 	//Create Matrices//

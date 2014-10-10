@@ -60,6 +60,7 @@ List col_mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, 
 	arma::mat xa(rxa.begin(), na, p, false);
 	arma::colvec yo(ryo.begin(), ryo.size(), false);
 	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
+	yo-=mean(yo);
 
 
 	//Create Matrices//
