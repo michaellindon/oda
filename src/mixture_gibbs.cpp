@@ -1,4 +1,3 @@
-#include <chrono>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -6,7 +5,7 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP ralpha){
+List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP ralpha){
 
 	//Define Variables//
 	int niter=Rcpp::as<int >(rniter);
@@ -19,12 +18,12 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	arma::mat xo(rxo.begin(), no, p, false);
 	arma::mat xa(rxa.begin(), na, p, false);
 	arma::colvec d(rd.begin(),rd.size(), false);
-	arma::colvec lam(rlam.begin(),rlam.size(), false);
 	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
 	arma::colvec yo(ryo.begin(), ryo.size(), false);
 	yo-=mean(yo);
 
 	//Pre-Processing//
+	Col<double> lam(p,fill::ones);
 	Col<double> xoyo=xo.t()*yo;
 	Col<double> xaya(p);
 	Mat<double> xat=xa.t();
@@ -66,7 +65,6 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	prob_mcmc.col(0)=prob;
 	lam_mcmc.col(0)=lam;
 	B_mcmc.col(0)=B;
-	auto start = std::chrono::steady_clock::now();
 	for (int t = 1; t < niter; ++t)
 	{
 
@@ -116,11 +114,6 @@ List mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		ya_mcmc.col(t)=ya;
 		phi_mcmc(t)=phi;
 	}
-	auto end = std::chrono::steady_clock::now();
-	std::chrono::duration<double> elapsed=end-start;
-
-	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
-	std::cout <<  elapsed.count()/niter << " sec - Per Iteration (avg)" << std::endl;
 
 
 	return Rcpp::List::create(

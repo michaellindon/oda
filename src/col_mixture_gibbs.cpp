@@ -5,7 +5,7 @@ using namespace Rcpp;
 using namespace arma;
 
 // [[Rcpp::export]]
-List col_mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP ralpha){
+List col_mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP ralpha){
 
 	//Define Variables//
 	int niter=Rcpp::as<int >(rniter);
@@ -50,6 +50,7 @@ List col_mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, 
 	Col<double> odds(p);
 	Col<double> ldl(p);
 	Col<double> dli(p);
+	Col<double> lam(p,fill::ones);
 	Col<uword> gamma(p,fill::ones);
 	Col<uword> inc_indices(p,fill::ones);
 
@@ -58,7 +59,6 @@ List col_mixture_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, 
 	arma::mat xo(rxo.begin(), no, p, false);
 	arma::mat xa(rxa.begin(), na, p, false);
 	arma::colvec yo(ryo.begin(), ryo.size(), false);
-	arma::colvec lam(rlam.begin(),rlam.size(), false);
 	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
 
 
