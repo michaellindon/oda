@@ -1,5 +1,0 @@
-CC=/opt/centos/devtoolset-1.1/root/usr/bin/gcc  
-CPP=/opt/centos/devtoolset-1.1/root/usr/bin/cpp
-CXX=/opt/centos/devtoolset-1.1/root/usr/bin/c++
-
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)

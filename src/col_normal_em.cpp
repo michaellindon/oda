@@ -4,7 +4,7 @@
 using namespace Rcpp;
 using namespace arma;
 
-double log_posterior_density_colcn(int no,const Mat<double>& Lamg, const Mat<double>& xoxog, const Col<uword>& gamma,const Col<double>& priorodds, double b);
+double log_posterior_density_colcn(const Col<double>& yo, const Mat<double>& Lam, const Mat<double>& xo, const Mat<double>& xoxo, const Col<uword>& gamma,const Col<double>& priorodds);
 
 // [[Rcpp::export]]
 List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rselection){
@@ -47,7 +47,9 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 
 	//Create Submatrices
 	Col<uword> gamma(p,fill::zeros);
+	Col<uword> gamma_greedy(p,fill::zeros);
 	Col<uword> inc_indices(p);
+	Col<uword> greedy_sort(p);
 	Mat<double> xog(no,p);
 	Mat<double> xoxog(p,p);
 	Mat<double> xag(na,p);
@@ -62,18 +64,20 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 	//Create Initial Gammas//
 	//Forward Selection//
 	if(selection==0) gamma.fill(0);
-	
+
 	//Backward Selection
 	if(selection==1) gamma.fill(1);
 
 	//Randomize Selection//
 	if(selection==2){
-	double init_prob=R::runif(0,1);
-	for(int i=0; i<p; ++i){
-		if(R::runif(0,1)<init_prob) gamma(i)=1;
-	}
+		double init_prob=R::runif(0,1);
+		for(int i=0; i<p; ++i){
+			if(R::runif(0,1)<init_prob) gamma(i)=1;
+		}
 	}
 
+	//Greedy Selection//
+	if(selection==3) gamma.fill(0);
 
 	//Run EM Algorithm//
 	cout << "Beginning EM Algorithm" << endl;
@@ -93,7 +97,7 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 		//E-Step//
 		//Phi//
 		b=0.5*(yoyo - dot(B,(xoxog+Lamg)*B));
-		lpd_trace(t-1)=log_posterior_density_colcn( no, Lamg, xoxog, gamma, priorodds,b);
+		lpd_trace(t-1)=log_posterior_density_colcn( yo, Lam, xo, xoxo, gamma, priorodds);
 
 		//Ya//
 		mu_ya=xag*B;
@@ -117,15 +121,31 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 			}else{
 				gamma(i)=0;
 			}
+
+
+
+		}
+		if(selection==3){
+			if(sum(abs(gamma-gamma_trace.col(t-1)))==0){
+				inc_indices=find(prob<=0.5);
+				greedy_sort=sort_index(prob(inc_indices),"descend");
+				gamma_greedy=gamma;
+				inc_indices= inc_indices(greedy_sort);
+				gamma_greedy(inc_indices(0))=1;
+				cout << "Greedy Attempting to Add Predictor: " << inc_indices(0)+1 << endl;
+				if(log_posterior_density_colcn( yo, Lam, xo, xoxo, gamma_greedy, priorodds)>log_posterior_density_colcn( yo, Lam, xo, xoxo, gamma, priorodds)){ gamma=gamma_greedy;
+					cout << "Success" << endl;
+				}else{cout << "Failure" << endl;}
+			}
 		}
 
 		//Store Values//
 		gamma_trace.col(t)=gamma;
 		prob_trace.col(t)=prob;
 
-		delta=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
+		delta=dot(gamma_trace.col(t)-gamma_trace.col(t-1),gamma_trace.col(t)-gamma_trace.col(t-1));
 		t=t+1;
-	} while(delta>0.0001);
+	} while(delta!=0);
 	cout << "EM Algorithm Complete" << endl;
 
 	//Report Top Model//
@@ -149,6 +169,13 @@ List col_normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Nume
 
 }
 
-double log_posterior_density_colcn(int no,const Mat<double>& Lamg, const Mat<double>& xoxog, const Col<uword>& gamma,const Col<double>& priorodds, double b){
-     return(0.5*log(det(Lamg))-0.5*log(det(Lamg+xoxog))-0.5*(no-1)*log(b)+sum(gamma%log(priorodds)));
+double log_posterior_density_colcn(const Col<double>& yo, const Mat<double>& Lam, const Mat<double>& xo, const Mat<double>& xoxo, const Col<uword>& gamma,const Col<double>& priorodds){
+	int no=xo.n_rows;
+	Col<uword> inc_indices=find(gamma);
+	Mat<double> Lamg=Lam.submat(inc_indices,inc_indices);
+	Mat<double> xog=xo.cols(inc_indices);
+	Mat<double> xoxog=xoxo.submat(inc_indices,inc_indices);
+
+	return(0.5*log(det(Lamg))-0.5*log(det(Lamg+xoxog))-0.5*(no-1)*log(0.5*(dot(yo,yo) - dot(xog.t()*yo,solve(xoxog+Lamg,xog.t()*yo))))+sum(gamma%log(priorodds)));
+
 }
