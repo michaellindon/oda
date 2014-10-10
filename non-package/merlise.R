@@ -41,7 +41,7 @@ xa=diag(L)%*%t(V)
 lam=rep(1,p) #Ridge Parameter
 priorprob=rep(0.01,p) #Bernoulli prior probs
 burnin=1000
-iterations=10000
+iterations=4000
 dof=1
 
 collapsed_normal=col_normal_gibbs(yo,xo,xa,lam,priorprob,burnin,iterations)
@@ -50,7 +50,16 @@ plot(collapsed_normal$prob)
 points(normal$prob,col="green")
 
 
-collapsed_cauchy=col_mixture_gibbs(yo,xo,xa,priorprob,burnin,iterations,dof)
-cauchy=mixture_gibbs(yo,xo,xa,d,priorprob,burnin,iterations,dof)
+collapsed_cauchy=col_t_gibbs(yo,xo,xa,priorprob,burnin,iterations,dof)
+cauchy=t_gibbs(yo,xo,xa,d,priorprob,burnin,iterations,dof)
 plot(collapsed_cauchy$prob)
 points(cauchy$prob,col="green")
+
+
+
+#EM fun
+col_normal_em=col_normal_em(yo,xo,xa,d,lam,priorprob,3) ###
+normal_em=normal_em(yo,xo,xa,d,lam,priorprob) ###no greedy yet
+cauchy_em=t_em(yo,xo,xa,d,priorprob,dof,0) ###no greedy yet
+
+
