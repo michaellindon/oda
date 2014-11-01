@@ -1,4 +1,4 @@
-#rm(list=ls())
+rm(list=ls())
 library(oda)
 
 #Generate Design Matrix
@@ -17,7 +17,7 @@ xo=scale(xo,center=F,scale=sqrt(var/no))
 p=dim(xo)[2]
 b=rep(0,p)
 b[1:4] = 4:1
-yo=xo%*%b+rnorm(no,0,1) # + 5  for Steve but mean substracted
+yo=xo%*%b+rnorm(no,0,8.3) # + 5  for Steve but mean substracted
 yo=yo-mean(yo)
 
 #Scale Data and Produce xa
@@ -47,16 +47,19 @@ normal=normal_gibbs(yo,xo,xa,d,lam,priorprob,burnin,iterations)
 plot(normal$prob,col="green")
 
 
-collapsed_cauchy=col_t_gibbs(yo,xo,xa,priorprob,burnin,iterations,dof)
-cauchy=t_gibbs(yo,xo,xa,d,priorprob,burnin,iterations,dof)
-plot(collapsed_cauchy$prob)
-points(cauchy$prob,col="green")
+#collapsed_cauchy=col_t_gibbs(yo,xo,xa,priorprob,burnin,iterations,dof)
+#cauchy=t_gibbs(yo,xo,xa,d,priorprob,burnin,iterations,dof)
+#plot(collapsed_cauchy$prob)
+#points(cauchy$prob,col="green")
 
+library(BAS)
+temp = data.frame(Y=yo, X=xo)
 
+bas.lm(Y ~ ., prior="ZS-null", data=temp, modelprior=beta.binomial(1/p))
 
 #EM fun
 col_normal_em=col_normal_em(yo,xo,xa,d,lam,priorprob,3) ###
 normal_em=normal_em(yo,xo,xa,d,lam,priorprob) ###no greedy yet
 cauchy_em=t_em(yo,xo,xa,d,priorprob,dof,0) ###no greedy yet
 
-
+summary(lm(Y ~ ., data=temp))
