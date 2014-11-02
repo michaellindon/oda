@@ -15,7 +15,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	int na=rxa.nrow();
 	double a=(double)0.5*(no-1);
 	double b;
-	double phi;
+	double phi=1;
 	Mat<double> xag;
 	Mat<double> xaxa(p,p);
 	Mat<double> xoxo(p,p);
@@ -26,17 +26,13 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	Mat<double> E(na,na);
 	Mat<double> L(na,na);
 	Mat<double> xog;
-	Mat<double> Ino=eye(no,no);
-	Mat<double> Ina=eye(na,na);
-	Mat<double> P1(no,no);
 	Mat<double> Px(no,no);
 	Mat<double> ya_mcmc(na,niter,fill::zeros);
 	Mat<double> prob_mcmc(p,niter,fill::zeros);
 	Mat<uword>  gamma_mcmc(p,niter,fill::ones);
 	Col<double> phi_mcmc(niter,fill::ones);
-	Col<double> one(no,fill::ones);
 	Col<double> mu(na);
-	Col<double> ya(na);
+	Col<double> ya(na,fill::zeros);
 	Col<double> Z(na);
 	Col<double> U(p);
 	Col<double> d(p);
@@ -47,7 +43,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	Col<double> odds(p);
 	Col<double> ldl(p);
 	Col<double> dli(p);
-	Col<uword> gamma(p,fill::ones);
+	Col<uword> gamma(p,fill::zeros);
 	Col<uword> inc_indices(p,fill::ones);
 
 
@@ -70,15 +66,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	priorodds=priorprob/(1-priorprob);
 	ldl=sqrt(lam/(d+lam));
 	dli=1/(d+lam);
+	double yoyo=dot(yo,yo);
 
-
-	//Initialize Parameters at MLE//
-	P1=one*(one.t()*one).i()*one.t();
-//	Px=xo*(xoxo).i()*xo.t();
-//	phi=(no-1)/dot(yo,((Ino-P1-Px)*yo));
-phi=1;
-//	Bols=(xoxo).i()*xo.t()*yo;
-	ya=xa*Bols;
 	ya_mcmc.col(0)=ya;
 	phi_mcmc(0)=phi;
 	gamma_mcmc.col(0)=gamma;
@@ -96,12 +85,13 @@ phi=1;
 		xoxog=xoxo.submat(inc_indices,inc_indices);
 
 		//Draw Phi//
-		b=0.5*dot(yo,(Ino-P1-xog*(xoxog+Lamg).i()*xog.t())*yo);
+		b=0.5*(yoyo-dot(xog.t()*yo, solve(xoxog+Lamg,xog.t()*yo)));
 		phi=R::rgamma(a,(1/b)); //rgamma uses scale
 
 		//Draw Ya//
-		mu=xag*(xoxog+Lamg).i()*xog.t()*yo;
-		E=Ina+xag*(xoxog+Lamg).i()*xag.t();
+		mu=xag*solve(xoxog+Lamg,xog.t()*yo);
+		E=xag*solve(xoxog+Lamg,xag.t());
+		for(int i=0; i < na; ++i) E(i,i)+=1;
 		E=E/phi;
 		L=chol(E);
 		for (int i = 0; i < na; ++i) Z(i)=R::rnorm(0,1);
