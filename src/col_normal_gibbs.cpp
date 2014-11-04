@@ -26,7 +26,6 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	Mat<double> E(na,na);
 	Mat<double> L(na,na);
 	Mat<double> xog;
-	Mat<double> Px(no,no);
 	Mat<double> ya_mcmc(na,niter,fill::zeros);
 	Mat<double> prob_mcmc(p,niter,fill::zeros);
 	Mat<uword>  gamma_mcmc(p,niter,fill::ones);
