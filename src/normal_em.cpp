@@ -92,7 +92,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 			//if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
 
 			//Choose Median Probability Model//
-			if(prob(i)*sqrt( ((d(i)+lam(i))*(phi))/(2*M_PI) )>(1-prob(i))){
+			if(priorprob(i)*sqrt(lam(i)/(2*M_PI))*trunc_exp(0.5*Rf_digamma(a)-0.5*log(b))*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i))>(1-priorprob(i))){
 				gamma(i)=1;
 				B(i)=dli(i)*d(i)*Bols(i);
 			}else{
