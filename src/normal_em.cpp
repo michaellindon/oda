@@ -7,13 +7,14 @@ using namespace arma;
 double log_posterior_density(int no,const Col<double>& lam, const Col<uword>& gamma,const Col<double>& priorodds, double a, double b,int p);
 
 // [[Rcpp::export]]
-List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rselection){
+List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rselection, SEXP rmaxiter){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
 	int selection=Rcpp::as<int >(rselection);
+	int maxiter=Rcpp::as<int >(rmaxiter);
 
 	//Create Data//
 	arma::mat xo(rxo.begin(), no, p, false);
@@ -55,12 +56,12 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	for (int i = 0; i < p; ++i) if(R::runif(0,1)>0.5) gamma(i)=1;
 
 	//Create Trace Matrices
-	Mat<double> prob_trace(p,10000);
-	Mat<double> B_trace(p,10000);
-	Mat<uword>  gamma_trace(p,10000);
-	Col<double> lpd_trace(10000);
-	Col<double> a_trace(10000);
-	Col<double> b_trace(10000);
+	Mat<double> prob_trace(p,maxiter);
+	Mat<double> B_trace(p,maxiter);
+	Mat<uword>  gamma_trace(p,maxiter);
+	Col<double> lpd_trace(maxiter);
+	Col<double> a_trace(maxiter);
+	Col<double> b_trace(maxiter);
 
 	//Create Initial Gammas//
 	//Forward Selection//
@@ -127,7 +128,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		deltaP=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
 		deltaB=dot(B_trace.col(t)-B_trace.col(t-1),B_trace.col(t)-B_trace.col(t-1));
 		t=t+1;
-	} while(deltaP>0.0000001 || deltaB>0.000000001);
+	} while(deltaB>0.000000001 && t<maxiter);
 
 
 	//Resize Trace Matrices//
