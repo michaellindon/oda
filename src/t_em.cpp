@@ -7,12 +7,13 @@ using namespace arma;
 double log_posterior_density_t(const Col<double>& Bg, const Col<uword>& gamma, double phi,const Col<double>& yo,const Mat<double>& xog,const Col<double>& priorodds, int no, double alpha);
 
 // [[Rcpp::export]]
-List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rpriorprob, SEXP ralpha){
+List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rpriorprob, SEXP ralpha, SEXP rselection){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
+	int selection=Rcpp::as<int >(rselection);
 
 	//Create Data//
 	arma::mat xo(rxo.begin(), no, p, false);
@@ -44,7 +45,7 @@ List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector
 	double alpha=Rcpp::as<double >(ralpha);
 
 	//Create Submatrices
-	Col<uword> gamma(p,fill::ones);
+	Col<uword> gamma(p,fill::zeros);
 	Col<uword> inc_indices(p,fill::ones);
 	Mat<double> xog=xo;
 	Mat<double> xag=xa;
@@ -58,6 +59,21 @@ List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector
 	Col<double> lpd_trace(10000);
 	Col<double> phi_trace(10000);
 
+	//Create Initial Gammas//
+	//Forward Selection//
+	if(selection==0) gamma.fill(0);
+	
+	//Backward Selection
+	if(selection==1) gamma.fill(1);
+
+	//Randomize Selection//
+	if(selection==2){
+	double init_prob=R::runif(0,1);
+	for(int i=0; i<p; ++i){
+		if(R::runif(0,1)<0.5) gamma(i)=1; //Note gamma initialized at zero
+	}
+	}
+	
 	//Run EM Algorithm//
 	gamma_trace.col(0)=gamma;
 	prob_trace.col(0)=prob;

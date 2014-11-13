@@ -7,12 +7,13 @@ using namespace arma;
 double log_posterior_density(int no,const Col<double>& lam, const Col<uword>& gamma,const Col<double>& priorodds, double a, double b,int p);
 
 // [[Rcpp::export]]
-List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob){
+List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rselection){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
+	int selection=Rcpp::as<int >(rselection);
 
 	//Create Data//
 	arma::mat xo(rxo.begin(), no, p, false);
@@ -61,6 +62,21 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Col<double> a_trace(10000);
 	Col<double> b_trace(10000);
 
+	//Create Initial Gammas//
+	//Forward Selection//
+	if(selection==0) gamma.fill(0);
+	
+	//Backward Selection
+	if(selection==1) gamma.fill(1);
+
+	//Randomize Selection//
+	if(selection==2){
+	double init_prob=R::runif(0,1);
+	for(int i=0; i<p; ++i){
+		if(R::runif(0,1)<0.5) gamma(i)=1; //Note gamma is initialized at zero
+	}
+	}
+	
 	//Run EM Algorithm//
 	gamma_trace.col(0)=gamma;
 	prob_trace.col(0)=prob;
