@@ -7,18 +7,18 @@ using namespace arma;
 double log_posterior_density_t(const Col<double>& Bg, const Col<uword>& gamma, double phi,const Col<double>& yo,const Mat<double>& xog,const Col<double>& priorodds, int no, double alpha);
 
 // [[Rcpp::export]]
-List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rpriorprob, SEXP ralpha, SEXP rselection, SEXP rmaxiter){
+List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, NumericVector rd, NumericVector rpriorprob, SEXP ralpha, SEXP rselection, SEXP rmaxiter){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
-	int na=rxa.nrow();
+	int na=rxaxa.nrow();
 	int selection=Rcpp::as<int >(rselection);
 	int maxiter=Rcpp::as<int >(rmaxiter);
 
 	//Create Data//
 	arma::mat xo(rxo.begin(), no, p, false);
-	arma::mat xa(rxa.begin(), na, p, false);
+	arma::mat xaxa(rxaxa.begin(), na, p, false);
 	arma::colvec d(rd.begin(),rd.size(), false);
 	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
 	arma::colvec yo(ryo.begin(), ryo.size(), false);
@@ -30,7 +30,6 @@ List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector
 	Col<double> B(p,fill::zeros);
 	Col<double> Bols=B;
 	Col<double> ya(na);
-	Mat<double> xat=xa.t();
 	Col<double> xaya(p);
 	Col<double> prob=priorprob;
 	Col<double> priorodds=priorprob/(1-priorprob);
@@ -49,7 +48,7 @@ List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector
 	Col<uword> gamma(p,fill::zeros);
 	Col<uword> inc_indices(p,fill::ones);
 	Mat<double> xog=xo;
-	Mat<double> xag=xa;
+	Mat<double> xaxag=xaxa;
 	Col<double> Bg=B;
 	Col<double> lamg=lam;
 
@@ -84,7 +83,6 @@ List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector
 		lpd_trace(t-1)=log_posterior_density_t(Bg, gamma, phi,yo,xog, priorodds, no, alpha);
 
 		//Expectation//
-		ya=xag*Bg;
 		lam=(alpha+gamma)/(alpha+phi*gamma%B%B);
 		for(int i=0; i<p; ++i){
 			explam(i)=trunc_exp(Rf_digamma(alpha+gamma(i)))/(alpha+gamma(i)*phi*B(i)*B(i));
@@ -93,7 +91,7 @@ List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector
 		}
 
 		//CM-Step (Beta,Gamma)|phi//
-		xaya=xat*ya;
+		xaya=xaxag*Bg;
 		for (int i = 0; i < p; ++i)
 		{
 
@@ -116,7 +114,7 @@ List t_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector
 		inc_indices=find(gamma);
 		Bg=B.elem(inc_indices);
 		lamg=lam.elem(inc_indices);
-		xag=xa.cols(inc_indices);
+		xaxag=xaxa.cols(inc_indices);
 		xog=xo.cols(inc_indices);
 
 		//CM-Step Phi|(Beta,Gamma)//
