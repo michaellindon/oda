@@ -7,18 +7,18 @@ using namespace arma;
 double log_posterior_density(int no,const Col<double>& lam, const Col<uword>& gamma,const Col<double>& priorodds, double a, double b,int p);
 
 // [[Rcpp::export]]
-List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rselection, SEXP rmaxiter){
+List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rselection, SEXP rmaxiter){
 
 	//Define Variables//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
-	int na=rxa.nrow();
+	int na=rxaxa.nrow();
 	int selection=Rcpp::as<int >(rselection);
 	int maxiter=Rcpp::as<int >(rmaxiter);
 
 	//Create Data//
 	arma::mat xo(rxo.begin(), no, p, false);
-	arma::mat xa(rxa.begin(), na, p, false);
+	arma::mat xaxa(rxaxa.begin(), na, p, false);
 	arma::colvec d(rd.begin(),rd.size(), false);
 	arma::colvec lam(rlam.begin(),rlam.size(), false);
 	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
@@ -30,8 +30,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Col<double> B(p,fill::zeros);
 	Col<double> Bols=B;
 	Col<double> mu_ya(na);
-	Mat<double> xat=xa.t();
-	Col<double> xamu_ya(p);
+	Col<double> xaya(p);
 	Mat<double> Lam=diagmat(lam);
 	Col<double> prob=priorprob;
 	Col<double> priorodds=priorprob/(1-priorprob);
@@ -48,7 +47,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 	Col<uword> gamma(p,fill::zeros);
 	Col<uword> inc_indices(p,fill::ones);
 	Mat<double> xog(no,p);
-	Mat<double> xag(na,p);
+	Mat<double> xaxag(na,p);
 	Mat<double> Lamg(p,p);
 	Col<double> Bg(p,fill::zeros);
 
@@ -87,7 +86,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		inc_indices=find(gamma);
 		Bg=B.elem(inc_indices);
 		Lamg=Lam.submat(inc_indices,inc_indices);
-		xag=xa.cols(inc_indices);
+		xaxag=xaxa.cols(inc_indices);
 		xog=xo.cols(inc_indices);
 
 		//E-Step Phi//
@@ -97,13 +96,12 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericV
 		lpd_trace(t-1)= log_posterior_density( no,lam, gamma, priorodds, a,  b, p);
 
 		//E-Step Ya//
-		mu_ya=xag*Bg;
+		xaya=xaxag*Bg;
 
 		//M-Step (Beta,Gamma)//
-		xamu_ya=xat*mu_ya;
 		for (int i = 0; i < p; ++i)
 		{
-			Bols(i)=(1/d(i))*(xoyo(i)+xamu_ya(i));
+			Bols(i)=(1/d(i))*(xoyo(i)+xaya(i));
 			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
 			prob(i)=odds(i)/(1+odds(i));
 			//if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
