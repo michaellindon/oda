@@ -80,6 +80,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, Numeri
 	//Run EM Algorithm//
 	gamma_trace.col(0)=gamma;
 	prob_trace.col(0)=prob;
+	B_trace.col(0)=B;
 	int t=1;
 	do{
 		//Form Submatrices
