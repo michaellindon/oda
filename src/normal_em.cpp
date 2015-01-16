@@ -73,7 +73,10 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, Numeri
 	if(selection==2){
 	double init_prob=R::runif(0,1);
 	for(int i=0; i<p; ++i){
-		if(R::runif(0,1)<0.5) gamma(i)=1; //Note gamma is initialized at zero
+		if(R::runif(0,1)<0.5){
+		       	gamma(i)=1; //Note gamma is initialized at zero
+			B(i)=R::rnorm(0,1);
+		}
 	}
 	}
 	
