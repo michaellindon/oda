@@ -1,4 +1,3 @@
-#include <chrono>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -64,7 +63,6 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 	mu_ya_trace.col(0)=mu_ya;
 	b_trace(0)=b;
 	int t=1;
-	auto start = std::chrono::steady_clock::now();
 	for(int anneal=0; anneal<=anneal_steps; ++anneal){
 	geometric=(double)(anneal_steps-anneal)/anneal_steps;
 	rho=pow(rho_min,geometric);
@@ -103,11 +101,6 @@ List normal_var(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, Numeric
 	}while (delta>0.0000001*p);
 	}
 
-	//Report Runtime//
-	auto end = std::chrono::steady_clock::now();
-	std::chrono::duration<double> elapsed=end-start;
-	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
-	std::cout <<  elapsed.count()/(t-1) << " sec - Per Iteration (avg)" << std::endl;
 
 	//Resize Trace Matrices//
 	prob_trace.resize(p,t);
