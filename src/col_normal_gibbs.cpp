@@ -4,104 +4,138 @@
 using namespace Rcpp;
 using namespace arma;
 
+extern "C" {
+	void dpotrs_(char * UPLO, int * N, int * NRHS, double * A, int * LDA, double * B, int * LDB, int *  INFO );
+	void dtrmv_(char * UPLO, char * TRANS, char * DIAG, int * N,double *  A,int * LDA,double * X,int * INCX);
+	void dtrtri_(char * UPLO, char * DIAG, int * N, double * A, int * LDA, int * INFO );
+	void dpotrf_(char *  UPLO,int * N,double * A,int * LDA,int * INFO );
+}
+
 // [[Rcpp::export]]
 List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter){
 
-	//Define Variables//
-	int niter=Rcpp::as<int >(rniter);
-	int burnin=Rcpp::as<int >(rburnin);
+	//Dimensions//
 	int p=rxo.ncol();
 	int no=rxo.nrow();
 	int na=rxa.nrow();
+
+	//Read RData Into Matrix Classes//
+	Mat<double> xo(rxo.begin(), no, p, false);
+	Mat<double> xa(rxa.begin(), na, p, false);
+	Col<double> yo(ryo.begin(), ryo.size(), false); yo-=mean(yo);
+	Col<double> lam(rlam.begin(),rlam.size(), false);
+	Col<double> priorprob(rpriorprob.begin(),rpriorprob.size(), false);
+	int niter=Rcpp::as<int >(rniter);
+	int burnin=Rcpp::as<int >(rburnin);
+
+	//Create Matrices//
+	Col<double> xoyo=xo.t()*yo;
+	Col<double> xogyo=xoyo;
+	Mat<double> xoxo=xo.t()*xo;
+	Mat<double> xaxa=xa.t()*xa;
+	Mat<double> xogxog_Lamg(p,p);
+	Col<double> d(p); for(int i=0; i<p; ++i) d(i)=xoxo(i,i)+xaxa(i,i);
+	Mat<double> xag=xa;
+	Col<double> lamg=lam; //vector instead of diagonal pxp matrix
+
+	//Phi Variables//
 	double a=(double)0.5*(no-1);
-	double b;
+	double b=1;
 	double phi=1;
-	Mat<double> xag;
-	Mat<double> xaxa(p,p);
-	Mat<double> xoxo(p,p);
-	Mat<double> xoxog(p,p);
-	Mat<double> D(p,p);
-	Mat<double> Lam(p,p);
-	Mat<double> Lamg(p,p);
-	Mat<double> E(na,na);
-	Mat<double> L(na,na);
-	Mat<double> xog;
+	double yoyo=dot(yo,yo);
+
+	//Ya Variables//
+	Col<double> ya(na,fill::zeros);
+	Col<double> mu(na);
+	Col<double> Z(na);
+
+	//Beta Variables//
+	Col<double> Bg(p,fill::zeros);
+
+	//Gamma Variables//
+	Col<uword> gamma(p,fill::zeros);
+	Col<uword> inc_indices(p,fill::ones);
+	Col<double> U(p);
+	Col<double> Bols(p,fill::zeros);
+	Col<double> prob(p,fill::ones);
+	Col<double> odds(p);
+	Col<double> priorodds=priorprob/(1-priorprob);
+	Col<double> ldl=sqrt(lam/(d+lam));
+	Col<double> dli=1/(d+lam);
+	bool gamma_diff=true;
+
+	//Allocate Space for MCMC Draws//
 	Mat<double> ya_mcmc(na,niter,fill::zeros);
 	Mat<double> prob_mcmc(p,niter,fill::zeros);
 	Mat<uword>  gamma_mcmc(p,niter,fill::ones);
 	Col<double> phi_mcmc(niter,fill::ones);
-	Col<double> mu(na);
-	Col<double> ya(na,fill::zeros);
-	Col<double> Z(na);
-	Col<double> U(p);
-	Col<double> d(p);
-	Col<double> Bols(p,fill::zeros);
-	Col<double> xoyo(p);
-	Col<double> prob(p,fill::ones);
-	Col<double> priorodds(p);
-	Col<double> odds(p);
-	Col<double> ldl(p);
-	Col<double> dli(p);
-	Col<uword> gamma(p,fill::zeros);
-	Col<uword> inc_indices(p,fill::ones);
-
-
-	//Copy RData Into Matrix Classes//
-	arma::mat xo(rxo.begin(), no, p, false);
-	arma::mat xa(rxa.begin(), na, p, false);
-	arma::colvec yo(ryo.begin(), ryo.size(), false);
-	arma::colvec lam(rlam.begin(),rlam.size(), false);
-	arma::colvec priorprob(rpriorprob.begin(),rpriorprob.size(), false);
-	yo-=mean(yo);
-
-
-	//Create Matrices//
-	xoyo=xo.t()*yo;
-	xoxo=xo.t()*xo;
-	xaxa=xa.t()*xa;
-	D=xaxa+xoxo;
-	d=D.diag();
-	Lam=diagmat(lam);
-	priorodds=priorprob/(1-priorprob);
-	ldl=sqrt(lam/(d+lam));
-	dli=1/(d+lam);
-	double yoyo=dot(yo,yo);
-
 	ya_mcmc.col(0)=ya;
 	phi_mcmc(0)=phi;
 	gamma_mcmc.col(0)=gamma;
 	prob_mcmc.col(0)=prob;
 
+	//LAPACK Variables//
+	char uplo = 'L';
+	char trans = 'T';
+	char diag = 'N';
+	int matrix_order;    
+	int lda;
+	int ldb;
+	int info;
+	int nrhs=1;
+	int incx=1;
 
-	//Run Gibbs Sampler//
+	//Begin Gibbs Sampling Algorithm//
 	for (int t = 1; t < niter; ++t)
 	{
-		//Form Submatrices
-		inc_indices=find(gamma);
-		Lamg=Lam.submat(inc_indices,inc_indices);
-		xag=xa.cols(inc_indices);
-		xog=xo.cols(inc_indices);
-		xoxog=xoxo.submat(inc_indices,inc_indices);
+		//Form Submatrices//
+		if(gamma_diff)
+		{
+			if(sum(gamma)!=0){
+				inc_indices=find(gamma);
+				xag=xa.cols(inc_indices);
+				xogyo=xoyo.elem(inc_indices);
+				lamg=lam.elem(inc_indices);
+				xogxog_Lamg=xoxo.submat(inc_indices,inc_indices);
+				xogxog_Lamg.diag()+=lamg; 
+				lda=ldb=matrix_order=xogxog_Lamg.n_rows;
+				//Positive Definite Cholesky Factorization//
+				dpotrf_(&uplo, &matrix_order, &*xogxog_Lamg.begin(), &lda, &info); //xerbla handles info error
+				Bg=xogyo; 
+				//Triangular Positive Definite Solve via Cholesky
+				dpotrs_(&uplo,  &matrix_order, &nrhs, &*xogxog_Lamg.begin(), &lda, &*Bg.begin(),  &ldb, &info);
+				//Triangular Matrix Inverse
+				dtrtri_(&uplo, &diag, &matrix_order, &*xogxog_Lamg.begin(),&lda, &info);
+
+				b=0.5*(yoyo-dot(xogyo, Bg)); 
+				mu=xag*Bg;
+			}else{
+				b=0.5*yoyo;
+			}
+		}
 
 		//Draw Phi//
-		b=0.5*(yoyo-dot(xog.t()*yo, solve(xoxog+Lamg,xog.t()*yo)));
 		phi=R::rgamma(a,(1/b)); //rgamma uses scale
 
 		//Draw Ya//
-		mu=xag*solve(xoxog+Lamg,xog.t()*yo);
-		E=xag*solve(xoxog+Lamg,xag.t());
-		for(int i=0; i < na; ++i) E(i,i)+=1;
-		E=E/phi;
-		L=chol(E);
-		for (int i = 0; i < na; ++i) Z(i)=R::rnorm(0,1);
-		ya=mu+L.t()*Z;
-
-		Bols=(1/d)%(xoyo+xa.t()*ya);
-		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
-		prob=odds/(1+odds);
+		Z.set_size(na);
+		Z.randn();
+		if(sum(gamma)!=0){
+			ya=mu+sqrt(1/phi)*Z;
+			Z.set_size(xogxog_Lamg.n_rows);
+			Z.randn();
+			//Triangular Matrix Multiply
+			dtrmv_(&uplo, &trans, &diag, &matrix_order, &*xogxog_Lamg.begin(), &lda, &*Z.begin(), &incx);
+			ya+=sqrt(1/phi)*xag*Z;
+		}else{
+			ya=sqrt(1/phi)*Z;
+		}
 
 		//Draw Gamma//
-		for (int i = 0; i < p; ++i) U(i)=R::runif(0,1);
+		Bols=(1/d)%(xoyo+xa.t()*ya); //maybe replace by blas call
+		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
+		prob=odds/(1+odds);
+		U.randu();
 		for (int i = 0; i < p; ++i)
 		{
 			if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
@@ -117,9 +151,19 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		prob_mcmc.col(t)=prob;
 		ya_mcmc.col(t)=ya;
 		phi_mcmc(t)=phi;
+
+
+		if(sum(abs(gamma_mcmc.col(t)-gamma_mcmc.col(t-1)))==0)
+		{
+			gamma_diff=false;
+		}else
+		{
+			gamma_diff=true;
+		}
 	}
 
 
+	//Return Data to R//
 	return Rcpp::List::create(
 			Rcpp::Named("phi_mcmc") = phi_mcmc,
 			Rcpp::Named("prob_mcmc") = prob_mcmc,
@@ -128,3 +172,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 			Rcpp::Named("ya_mcmc") = ya_mcmc
 			) ;
 }
+
+
+//Notes: Lam is O(pxp) space complexity, terrible, just use lam O(p) instead.
+//Better to pass xoxo and d instead of xoxo & xaxa and computing d inside the code, as this requires O(pxp) instead of O(p) [xa is needed anyway] and xa.t()*xa takes forever
+//dtritri otherwise need to do dpotrs and then dpotrf again
