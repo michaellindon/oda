@@ -5,10 +5,10 @@ using namespace Rcpp;
 using namespace arma;
 
 extern "C" {
+	void dpotrf_(char *  UPLO,int * N,double * A,int * LDA,int * INFO );
 	void dpotrs_(char * UPLO, int * N, int * NRHS, double * A, int * LDA, double * B, int * LDB, int *  INFO );
 	void dtrmv_(char * UPLO, char * TRANS, char * DIAG, int * N,double *  A,int * LDA,double * X,int * INCX);
-	void dtrtri_(char * UPLO, char * DIAG, int * N, double * A, int * LDA, int * INFO );
-	void dpotrf_(char *  UPLO,int * N,double * A,int * LDA,int * INFO );
+	void dtrsv_(char * UPLO, char * TRANS, char * DIAG, int * N, double * A, int * LDA, double * X, int * INCX );
 }
 
 // [[Rcpp::export]]
@@ -48,6 +48,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	Col<double> ya(na,fill::zeros);
 	Col<double> mu(na);
 	Col<double> Z(na);
+	Col<double> xaya(p);
 
 	//Beta Variables//
 	Col<double> Bg(p,fill::zeros);
@@ -75,37 +76,35 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	prob_mcmc.col(0)=prob;
 
 	//LAPACK Variables//
-	char uplo = 'L';
-	char trans = 'T';
+	char uplo = 'U';
+	char transN = 'N';
+	char transT = 'T';
 	char diag = 'N';
-	int matrix_order;    
-	int lda;
-	int ldb;
 	int info;
 	int nrhs=1;
 	int incx=1;
+	int p_gamma;
 
 	//Begin Gibbs Sampling Algorithm//
 	for (int t = 1; t < niter; ++t)
 	{
 		//Form Submatrices//
+		p_gamma=sum(gamma);
 		if(gamma_diff)
 		{
-			if(sum(gamma)!=0){
+			if(p_gamma!=0){
 				inc_indices=find(gamma);
 				xag=xa.cols(inc_indices);
 				xogyo=xoyo.elem(inc_indices);
 				lamg=lam.elem(inc_indices);
 				xogxog_Lamg=xoxo.submat(inc_indices,inc_indices);
 				xogxog_Lamg.diag()+=lamg; 
-				lda=ldb=matrix_order=xogxog_Lamg.n_rows;
 				//Positive Definite Cholesky Factorization//
-				dpotrf_(&uplo, &matrix_order, &*xogxog_Lamg.begin(), &lda, &info); //xerbla handles info error
+				dpotrf_(&uplo, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &info); //xerbla handles info error
+				//xogxog_Lamg now stores R upper triangular where xogxog_Lamg=R'R
 				Bg=xogyo; 
 				//Triangular Positive Definite Solve via Cholesky
-				dpotrs_(&uplo,  &matrix_order, &nrhs, &*xogxog_Lamg.begin(), &lda, &*Bg.begin(),  &ldb, &info);
-				//Triangular Matrix Inverse
-				dtrtri_(&uplo, &diag, &matrix_order, &*xogxog_Lamg.begin(),&lda, &info);
+				dpotrs_(&uplo,  &p_gamma, &nrhs, &*xogxog_Lamg.begin(), &p_gamma, &*Bg.begin(),  &p_gamma, &info);
 
 				b=0.5*(yoyo-dot(xogyo, Bg)); 
 				mu=xag*Bg;
@@ -120,19 +119,23 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		//Draw Ya//
 		Z.set_size(na);
 		Z.randn();
-		if(sum(gamma)!=0){
+		if(p_gamma!=0){
 			ya=mu+sqrt(1/phi)*Z;
-			Z.set_size(xogxog_Lamg.n_rows);
+			Z.set_size(p_gamma);
 			Z.randn();
-			//Triangular Matrix Multiply
-			dtrmv_(&uplo, &trans, &diag, &matrix_order, &*xogxog_Lamg.begin(), &lda, &*Z.begin(), &incx);
+			//Computes R^{-1}Z where xogxog_Lamg^{-1}=R^{-1}R^{-T}
+			dtrsv_(&uplo, &transN, &diag, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &*Z.begin(), &incx);
 			ya+=sqrt(1/phi)*xag*Z;
+			xaya=ya;
+			dtrmv_(&uplo, &transT, &diag, &na, &*xa.begin(), &na, &*xaya.begin(), &incx);
 		}else{
 			ya=sqrt(1/phi)*Z;
+			xaya=ya;
+			dtrmv_(&uplo, &transT, &diag, &na, &*xa.begin(), &na, &*xaya.begin(), &incx);
 		}
 
 		//Draw Gamma//
-		Bols=(1/d)%(xoyo+xa.t()*ya); //maybe replace by blas call
+		Bols=(1/d)%(xoyo+xaya);
 		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
 		prob=odds/(1+odds);
 		U.randu();
