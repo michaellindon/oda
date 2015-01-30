@@ -1,4 +1,3 @@
-#include <chrono>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -65,7 +64,6 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 	//gamma_mcmc.col(0)=gamma;
 	prob_mcmc.col(0)=prob;
 	B_mcmc.col(0)=B;
-	auto start = std::chrono::steady_clock::now();
 	for (int t = 1; t < niter; ++t)
 	{
 
@@ -128,11 +126,6 @@ List probit_normal_gibbs(NumericVector rbit, NumericMatrix rxo, NumericMatrix rx
 	//	ya_mcmc.col(t)=ya;
 	}
 
-	//Report Runtime//
-	auto end = std::chrono::steady_clock::now();
-	std::chrono::duration<double> elapsed=end-start;
-	std::cout <<  elapsed.count() << " sec - Total Runtime" << std::endl;
-	std::cout <<  elapsed.count()/niter << " sec - Per Iteration (avg)" << std::endl;
 
 
 	return Rcpp::List::create(
