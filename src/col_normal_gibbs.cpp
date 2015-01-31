@@ -68,8 +68,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	//Allocate Space for MCMC Draws//
 	Mat<double> ya_mcmc(na,niter,fill::zeros);
 	Mat<double> prob_mcmc(p,niter,fill::zeros);
-	Mat<uword>  gamma_mcmc(p,niter,fill::ones);
-	Col<double> phi_mcmc(niter,fill::ones);
+	Mat<uword>  gamma_mcmc(p,niter,fill::zeros);
+	Col<double> phi_mcmc(niter,fill::zeros);
 	ya_mcmc.col(0)=ya;
 	phi_mcmc(0)=phi;
 	gamma_mcmc.col(0)=gamma;
