@@ -25,6 +25,16 @@ extern "C" {
 	void dgemv_(char * TRANS, int * M, int * N, double * ALPHA, double * A, int * LDA, double * X, int * INCX, double * BETA, double * Y, int * INCY);
 }
 
+inline void fixed_probabilities(Col<double> &prob, Col<double> &odds, Col<double> &Bols, const Col<double> &d, const Col<double> &xoyo, const Col<double> &xaya, const Col<double> &priorodds, const Col<double> &ldl, const Col<double> &dli, double phi){
+	for(int i=0; i<prob.n_elem; ++i)
+	{
+		Bols(i)=(1/d(i))*(xoyo(i)+xaya(i));
+		odds(i)=priorodds(i)*ldl(i)*exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
+		prob(i)=odds(i)/(1+odds(i));
+		if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN exponential
+	}
+};
+
 inline void draw_collapsed_xaya(Col<double> &xaya, Mat<double> &xa, Mat<double> &xag, Col<double> &mu, double phi,Col<double> &Z, Mat<double> &xogxog_Lamg, int na, int p_gamma){
 
 	double sd=sqrt(1/phi);
@@ -48,7 +58,6 @@ inline void draw_gamma(Col<uword> &gamma, Col<double> prob, Col<double> &U){
 	for(Col<double>::iterator it=U.begin(); it!=U.end(); ++it) *it=R::runif(0,1);
 	for (int i = 0; i < prob.n_elem ; ++i)
 	{
-		if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
 		if(U(i)<prob(i)){
 			gamma(i)=1;
 		}else{
@@ -102,7 +111,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	double yoyo=dot(yo,yo);
 
 	//Ya Variables//
-	Col<double> ya(na,fill::zeros);
+	Col<double> ya(na);
 	Col<double> mu(na);
 	Col<double> Z(na);
 	Col<double> xaya(p);
@@ -124,31 +133,30 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	int p_gamma;
 
 	//Allocate Space for MCMC Draws//
-	Mat<double> ya_mcmc(na,niter,fill::zeros);
-	Mat<double> prob_mcmc(p,niter,fill::zeros);
-	Mat<uword>  gamma_mcmc(p,niter,fill::zeros);
-	Col<double> phi_mcmc(niter,fill::zeros);
+	Mat<double> ya_mcmc(na,niter);
+	Mat<double> prob_mcmc(p,niter);
+	Mat<uword>  gamma_mcmc(p,niter);
+	Col<double> phi_mcmc(niter);
 	ya_mcmc.col(0)=ya;
 	phi_mcmc(0)=phi;
 	gamma_mcmc.col(0)=gamma;
 	prob_mcmc.col(0)=prob;
 
 
-
 	//Begin Gibbs Sampling Algorithm//
 	for (int t = 1; t < niter; ++t)
 	{
-		//Form Submatrices//
-		p_gamma=sum(gamma);
+		//If gamma[t]!=Gamma[t-1] Form Submatrices//
 		if(gamma_diff)
 		{
+			p_gamma=sum(gamma);
 			if(p_gamma!=0){
 				inc_indices=find(gamma);
 				xag=xa.cols(inc_indices);
 				xogyo=xoyo.elem(inc_indices);
 				lamg=lam.elem(inc_indices);
 				xogxog_Lamg=xoxo.submat(inc_indices,inc_indices);
-				xogxog_Lamg.diag()+=lamg; 
+				for(int d=0; d<p_gamma; ++d)	xogxog_Lamg(d,d)+=lamg(d); 
 				//Positive Definite Cholesky Factorization//
 				dpotrf_(&uplo, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &info); //xerbla handles info error
 				//xogxog_Lamg now stores R upper triangular where xogxog_Lamg=R'R
@@ -170,9 +178,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p_gamma);
 
 		//Draw Gamma//
-		Bols=(1/d)%(xoyo+xaya);
-		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
-		prob=odds/(1+odds);
+		fixed_probabilities(prob, odds, Bols, d, xoyo, xaya, priorodds, ldl, dli, phi);
 		draw_gamma(gamma,prob,U);
 
 		//Store Draws//
@@ -181,7 +187,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		ya_mcmc.col(t)=ya;
 		phi_mcmc(t)=phi;
 
-		//Has Gamma Changed//
+		//Has Gamma Changed?//
 		gamma_diff=gamma_change(gamma_mcmc,t);
 
 	}
