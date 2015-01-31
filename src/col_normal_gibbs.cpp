@@ -25,6 +25,7 @@ extern "C" {
 	void dtrmv_(char * UPLO, char * TRANS, char * DIAG, int * N,double *  A,int * LDA,double * X,int * INCX);
 	void dtrsv_(char * UPLO, char * TRANS, char * DIAG, int * N, double * A, int * LDA, double * X, int * INCX);
 	void dgemv_(char * TRANS, int * M, int * N, double * ALPHA, double * A, int * LDA, double * X, int * INCX, double * BETA, double * Y, int * INCY);
+	double ddot_(int * N, double * DX, int * INCX, double * DY, int * INCY);
 }
 
 inline void fixed_probabilities(Col<double> &prob, Col<double> &odds, Col<double> &Bols, const Col<double> &d, const Col<double> &xoyo, const Col<double> &xaya, const Col<double> &priorodds, const Col<double> &ldl, const Col<double> &dli, double phi){
@@ -110,7 +111,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	double a=(double)0.5*(no-1);
 	double b=1;
 	double phi=1;
-	double yoyo=dot(yo,yo);
+	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
 
 	//Ya Variables//
 	Col<double> ya(na);
@@ -166,9 +167,9 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 				//Triangular Positive Definite Solve via Cholesky
 				dpotrs_(&uplo,  &p_gamma, &nrhs, &*xogxog_Lamg.begin(), &p_gamma, &*Bg.begin(),  &p_gamma, &info);
 
-				b=0.5*(yoyo-std::inner_product(xogyo.begin(),xogyo.end(),Bg.begin(),0));
-		dgemv_(&transN , &na, &p_gamma, &unity, &*xag.begin(), &na, &*Bg.begin(), &inc, &inputscale0, &*mu.begin(), &inc);
-		//		mu=xag*Bg;
+				//b=0.5*(yoyo-std::inner_product(xogyo.begin(),xogyo.end(),Bg.begin(),0));
+				b=0.5*(yoyo-ddot_(&p_gamma, &*xogyo.begin(), &inc, &*Bg.begin(), &inc));
+				dgemv_(&transN , &na, &p_gamma, &unity, &*xag.begin(), &na, &*Bg.begin(), &inc, &inputscale0, &*mu.begin(), &inc);
 			}else{
 				b=0.5*yoyo;
 			}
