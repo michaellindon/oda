@@ -14,7 +14,9 @@ char unit_tri = 'N';
 int info;
 int nrhs=1;
 int inc=1;
-double inputscale=1.0;
+double inputscale1=1.0;
+double inputscale0=0.0;
+double unity=1.0;
 
 
 extern "C" {
@@ -46,7 +48,7 @@ inline void draw_collapsed_xaya(Col<double> &xaya, Mat<double> &xa, Mat<double> 
 		for(Col<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=R::rnorm(0,1);
 		//Computes R^{-1}Z where xogxog_Lamg^{-1}=R^{-1}R^{-T}
 		dtrsv_(&uplo, &transN, &unit_tri, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &*Z.begin(), &inc);
-		dgemv_(&transN , &na, &p_gamma, &sd, &*xag.begin(), &na, &*Z.begin(), &inc, &inputscale, &*xaya.begin(), &inc);
+		dgemv_(&transN , &na, &p_gamma, &sd, &*xag.begin(), &na, &*Z.begin(), &inc, &inputscale1, &*xaya.begin(), &inc);
 		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
 	}else{
 		xaya=sqrt(1/phi)*Z;
@@ -165,7 +167,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 				dpotrs_(&uplo,  &p_gamma, &nrhs, &*xogxog_Lamg.begin(), &p_gamma, &*Bg.begin(),  &p_gamma, &info);
 
 				b=0.5*(yoyo-std::inner_product(xogyo.begin(),xogyo.end(),Bg.begin(),0));
-				mu=xag*Bg;
+		dgemv_(&transN , &na, &p_gamma, &unity, &*xag.begin(), &na, &*Bg.begin(), &inc, &inputscale0, &*mu.begin(), &inc);
+		//		mu=xag*Bg;
 			}else{
 				b=0.5*yoyo;
 			}
