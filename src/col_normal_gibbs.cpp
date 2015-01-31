@@ -1,4 +1,3 @@
-#include <numeric>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -25,6 +24,7 @@ extern "C" {
 	void dtrmv_(char * UPLO, char * TRANS, char * DIAG, int * N,double *  A,int * LDA,double * X,int * INCX);
 	void dtrsv_(char * UPLO, char * TRANS, char * DIAG, int * N, double * A, int * LDA, double * X, int * INCX);
 	void dgemv_(char * TRANS, int * M, int * N, double * ALPHA, double * A, int * LDA, double * X, int * INCX, double * BETA, double * Y, int * INCY);
+	void daxpy_(int * N, double * DA, double * DX, int * INCX, double * DY, int * INCY);
 	double ddot_(int * N, double * DX, int * INCX, double * DY, int * INCY);
 }
 
@@ -38,13 +38,14 @@ inline void fixed_probabilities(Col<double> &prob, Col<double> &odds, Col<double
 	}
 };
 
-inline void draw_collapsed_xaya(Col<double> &xaya, Mat<double> &xa, Mat<double> &xag, Col<double> &mu, double phi,Col<double> &Z, Mat<double> &xogxog_Lamg, int na, int p_gamma){
+inline void draw_collapsed_xaya(Col<double> &xaya, Mat<double> &xa, Mat<double> &xag, Col<double> &mu, double phi,Col<double> &Z, Mat<double> &xogxog_Lamg, int na, int p, int p_gamma){
 
 	double sd=sqrt(1/phi);
 	Z.set_size(na);
 	for(Col<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=R::rnorm(0,1);
 	if(p_gamma!=0){
-		xaya=mu+sqrt(1/phi)*Z;
+		xaya=mu;
+		daxpy_(&p, &sd, &*Z.begin(), &inc, &*xaya.begin(), &inc);
 		Z.set_size(p_gamma);
 		for(Col<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=R::rnorm(0,1);
 		//Computes R^{-1}Z where xogxog_Lamg^{-1}=R^{-1}R^{-T}
@@ -52,7 +53,7 @@ inline void draw_collapsed_xaya(Col<double> &xaya, Mat<double> &xa, Mat<double> 
 		dgemv_(&transN , &na, &p_gamma, &sd, &*xag.begin(), &na, &*Z.begin(), &inc, &inputscale1, &*xaya.begin(), &inc);
 		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
 	}else{
-		xaya=sqrt(1/phi)*Z;
+		for(int i=0; i<p; ++i) xaya(i)=sd*Z(i);
 		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
 	}
 };
@@ -129,9 +130,14 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	Col<double> Bols(p,fill::zeros);
 	Col<double> prob(p,fill::ones);
 	Col<double> odds(p);
-	Col<double> priorodds=priorprob/(1-priorprob);
-	Col<double> ldl=sqrt(lam/(d+lam));
-	Col<double> dli=1/(d+lam);
+	Col<double> priorodds(p);
+	Col<double> ldl(p);
+	Col<double> dli(p);
+	for(int i=0; i<p; ++i){
+	priorodds(i)=priorprob(i)/(1-priorprob(i));
+	ldl(i)=sqrt(lam(i)/(d(i)+lam(i)));
+	dli(i)=1/(d(i)+lam(i));
+	}
 	bool gamma_diff=true;
 	int p_gamma;
 
@@ -179,7 +185,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		phi=R::rgamma(a,(1/b)); //rgamma uses scale
 
 		//Draw Ya//
-		draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p_gamma);
+		draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p,p_gamma);
 
 		//Draw Gamma//
 		fixed_probabilities(prob, odds, Bols, d, xoyo, xaya, priorodds, ldl, dli, phi);
