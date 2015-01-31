@@ -1,14 +1,71 @@
+#include <numeric>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
 using namespace Rcpp;
 using namespace arma;
 
+
+//LAPACK Variables//
+char uplo = 'U';
+char transN = 'N';
+char transT = 'T';
+char unit_tri = 'N';
+int info;
+int nrhs=1;
+int inc=1;
+double inputscale=1.0;
+
+
 extern "C" {
 	void dpotrf_(char *  UPLO,int * N,double * A,int * LDA,int * INFO );
-	void dpotrs_(char * UPLO, int * N, int * NRHS, double * A, int * LDA, double * B, int * LDB, int *  INFO );
+	void dpotrs_(char * UPLO, int * N, int * NRHS, double * A, int * LDA, double * B, int * LDB, int *  INFO);
 	void dtrmv_(char * UPLO, char * TRANS, char * DIAG, int * N,double *  A,int * LDA,double * X,int * INCX);
-	void dtrsv_(char * UPLO, char * TRANS, char * DIAG, int * N, double * A, int * LDA, double * X, int * INCX );
+	void dtrsv_(char * UPLO, char * TRANS, char * DIAG, int * N, double * A, int * LDA, double * X, int * INCX);
+	void dgemv_(char * TRANS, int * M, int * N, double * ALPHA, double * A, int * LDA, double * X, int * INCX, double * BETA, double * Y, int * INCY);
+}
+
+inline void draw_collapsed_xaya(Col<double> &xaya, Mat<double> &xa, Mat<double> &xag, Col<double> &mu, double phi,Col<double> &Z, Mat<double> &xogxog_Lamg, int na, int p_gamma){
+
+	double sd=sqrt(1/phi);
+	Z.set_size(na);
+	for(Col<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=R::rnorm(0,1);
+	if(p_gamma!=0){
+		xaya=mu+sqrt(1/phi)*Z;
+		Z.set_size(p_gamma);
+		for(Col<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=R::rnorm(0,1);
+		//Computes R^{-1}Z where xogxog_Lamg^{-1}=R^{-1}R^{-T}
+		dtrsv_(&uplo, &transN, &unit_tri, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &*Z.begin(), &inc);
+		dgemv_(&transN , &na, &p_gamma, &sd, &*xag.begin(), &na, &*Z.begin(), &inc, &inputscale, &*xaya.begin(), &inc);
+		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
+	}else{
+		xaya=sqrt(1/phi)*Z;
+		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
+	}
+};
+
+inline void draw_gamma(Col<uword> &gamma, Col<double> prob, Col<double> &U){
+	for(Col<double>::iterator it=U.begin(); it!=U.end(); ++it) *it=R::runif(0,1);
+	for (int i = 0; i < prob.n_elem ; ++i)
+	{
+		if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
+		if(U(i)<prob(i)){
+			gamma(i)=1;
+		}else{
+			gamma(i)=0;
+		}
+	}
+}
+
+inline bool gamma_change(const Mat<uword> &gamma_mcmc, int t){
+
+	if(sum(abs(gamma_mcmc.col(t)-gamma_mcmc.col(t-1)))==0)
+	{
+		return(false);
+	}else
+	{
+		return(true);
+	}
 }
 
 // [[Rcpp::export]]
@@ -64,6 +121,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	Col<double> ldl=sqrt(lam/(d+lam));
 	Col<double> dli=1/(d+lam);
 	bool gamma_diff=true;
+	int p_gamma;
 
 	//Allocate Space for MCMC Draws//
 	Mat<double> ya_mcmc(na,niter,fill::zeros);
@@ -75,15 +133,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	gamma_mcmc.col(0)=gamma;
 	prob_mcmc.col(0)=prob;
 
-	//LAPACK Variables//
-	char uplo = 'U';
-	char transN = 'N';
-	char transT = 'T';
-	char diag = 'N';
-	int info;
-	int nrhs=1;
-	int incx=1;
-	int p_gamma;
+
 
 	//Begin Gibbs Sampling Algorithm//
 	for (int t = 1; t < niter; ++t)
@@ -106,7 +156,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 				//Triangular Positive Definite Solve via Cholesky
 				dpotrs_(&uplo,  &p_gamma, &nrhs, &*xogxog_Lamg.begin(), &p_gamma, &*Bg.begin(),  &p_gamma, &info);
 
-				b=0.5*(yoyo-dot(xogyo, Bg)); 
+				b=0.5*(yoyo-std::inner_product(xogyo.begin(),xogyo.end(),Bg.begin(),0));
 				mu=xag*Bg;
 			}else{
 				b=0.5*yoyo;
@@ -117,37 +167,13 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		phi=R::rgamma(a,(1/b)); //rgamma uses scale
 
 		//Draw Ya//
-		Z.set_size(na);
-		Z.randn();
-		if(p_gamma!=0){
-			ya=mu+sqrt(1/phi)*Z;
-			Z.set_size(p_gamma);
-			Z.randn();
-			//Computes R^{-1}Z where xogxog_Lamg^{-1}=R^{-1}R^{-T}
-			dtrsv_(&uplo, &transN, &diag, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &*Z.begin(), &incx);
-			ya+=sqrt(1/phi)*xag*Z;
-			xaya=ya;
-			dtrmv_(&uplo, &transT, &diag, &na, &*xa.begin(), &na, &*xaya.begin(), &incx);
-		}else{
-			ya=sqrt(1/phi)*Z;
-			xaya=ya;
-			dtrmv_(&uplo, &transT, &diag, &na, &*xa.begin(), &na, &*xaya.begin(), &incx);
-		}
+		draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p_gamma);
 
 		//Draw Gamma//
 		Bols=(1/d)%(xoyo+xaya);
 		odds=priorodds%ldl%trunc_exp(0.5*phi*dli%d%d%Bols%Bols);
 		prob=odds/(1+odds);
-		U.randu();
-		for (int i = 0; i < p; ++i)
-		{
-			if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
-			if(U(i)<prob(i)){
-				gamma(i)=1;
-			}else{
-				gamma(i)=0;
-			}
-		}
+		draw_gamma(gamma,prob,U);
 
 		//Store Draws//
 		gamma_mcmc.col(t)=gamma;
@@ -155,14 +181,9 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		ya_mcmc.col(t)=ya;
 		phi_mcmc(t)=phi;
 
+		//Has Gamma Changed//
+		gamma_diff=gamma_change(gamma_mcmc,t);
 
-		if(sum(abs(gamma_mcmc.col(t)-gamma_mcmc.col(t-1)))==0)
-		{
-			gamma_diff=false;
-		}else
-		{
-			gamma_diff=true;
-		}
 	}
 
 
