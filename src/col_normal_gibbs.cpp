@@ -102,7 +102,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 
 	//Create Matrices//
 	Col<double> xoyo=xo.t()*yo;
-	Col<double> xogyo=xoyo;
+	vector<double> xogyo; xogyo.reserve(p);
 	//vector<double> xoyo(p);
 	//dgemv_(&transT , &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*yo.begin(), &inc);
 	Mat<double> xoxo=xo.t()*xo;
@@ -110,7 +110,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	Mat<double> xogxog_Lamg(p,p);
 	Col<double> d(p); for(int i=0; i<p; ++i) d(i)=xoxo(i,i)+xaxa(i,i);
 	Mat<double> xag=xa;
-	Col<double> lamg=lam; //vector instead of diagonal pxp matrix
+	vector<double> lamg; lamg.reserve(p); //vector instead of diagonal pxp matrix
 
 	//Phi Variables//
 	double a=(double)0.5*(no-1);
@@ -125,7 +125,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	vector<double> xaya(p);
 
 	//Beta Variables//
-	Col<double> Bg(p,fill::zeros);
+	vector<double> Bg; Bg.reserve(p);
 
 	//Gamma Variables//
 	Col<uword> gamma(p,fill::zeros);
@@ -166,14 +166,23 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 			if(p_gamma!=0){
 				inc_indices=find(gamma);
 				xag=xa.cols(inc_indices);
-				xogyo=xoyo.elem(inc_indices);
-				lamg=lam.elem(inc_indices);
+				xogyo.resize(0);
+				lamg.resize(0);
+				Bg.resize(0);
+				for(int i=0; i<p; ++i)
+				{
+					if(gamma(i)==1)
+					{
+						xogyo.push_back(xoyo(i));
+						Bg.push_back(xoyo(i));
+						lamg.push_back(lam(i));
+					}
+				}
 				xogxog_Lamg=xoxo.submat(inc_indices,inc_indices);
-				for(int d=0; d<p_gamma; ++d)	xogxog_Lamg(d,d)+=lamg(d); 
+				for(int d=0; d<p_gamma; ++d)	xogxog_Lamg(d,d)=xogxog_Lamg(d,d)+lamg[d]; 
 				//Positive Definite Cholesky Factorization//
 				dpotrf_(&uplo, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &info); //xerbla handles info error
 				//xogxog_Lamg now stores R upper triangular where xogxog_Lamg=R'R
-				Bg=xogyo; 
 				//Triangular Positive Definite Solve via Cholesky
 				dpotrs_(&uplo,  &p_gamma, &nrhs, &*xogxog_Lamg.begin(), &p_gamma, &*Bg.begin(),  &p_gamma, &info);
 
