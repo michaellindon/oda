@@ -40,7 +40,7 @@ inline void fixed_probabilities(Col<double> &prob, vector<double> &odds, Col<dou
 	}
 };
 
-inline void draw_collapsed_xaya(vector<double> &xaya, Mat<double> &xa, Mat<double> &xag, vector<double> &mu, double phi, vector<double> &Z, Mat<double> &xogxog_Lamg, int na, int p, int p_gamma){
+inline void draw_collapsed_xaya(vector<double> &xaya, Mat<double> &xa, vector<double> &xag, vector<double> &mu, double phi, vector<double> &Z, Mat<double> &xogxog_Lamg, int na, int p, int p_gamma){
 
 	double sd=sqrt(1/phi);
 	Z.resize(na);
@@ -109,7 +109,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	Mat<double> xaxa=xa.t()*xa;
 	Mat<double> xogxog_Lamg(p,p);
 	Col<double> d(p); for(int i=0; i<p; ++i) d(i)=xoxo(i,i)+xaxa(i,i);
-	Mat<double> xag=xa;
+	vector<double> xag; xag.reserve(na*p);
 	vector<double> lamg; lamg.reserve(p); //vector instead of diagonal pxp matrix
 
 	//Phi Variables//
@@ -165,7 +165,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 			p_gamma=sum(gamma);
 			if(p_gamma!=0){
 				inc_indices=find(gamma);
-				xag=xa.cols(inc_indices);
+				xag.resize(0);
 				xogyo.resize(0);
 				lamg.resize(0);
 				Bg.resize(0);
@@ -176,6 +176,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 						xogyo.push_back(xoyo(i));
 						Bg.push_back(xoyo(i));
 						lamg.push_back(lam(i));
+						for(int j=0; j<na; ++j) xag.push_back(xa[i*na+j]);
 					}
 				}
 				xogxog_Lamg=xoxo.submat(inc_indices,inc_indices);
