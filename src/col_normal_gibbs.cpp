@@ -40,7 +40,7 @@ inline void fixed_probabilities(Col<double> &prob, vector<double> &odds, Col<dou
 	}
 };
 
-inline void draw_collapsed_xaya(vector<double> &xaya, Mat<double> &xa, vector<double> &xag, vector<double> &mu, double phi, vector<double> &Z, Mat<double> &xogxog_Lamg, int na, int p, int p_gamma){
+inline void draw_collapsed_xaya(vector<double> &xaya, Mat<double> &xa, vector<double> &xag, vector<double> &mu, double phi, vector<double> &Z, vector<double> &xogxog_Lamg, int na, int p, int p_gamma){
 
 	double sd=sqrt(1/phi);
 	Z.resize(na);
@@ -107,7 +107,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	//dgemv_(&transT , &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*yo.begin(), &inc);
 	Mat<double> xoxo=xo.t()*xo;
 	Mat<double> xaxa=xa.t()*xa;
-	Mat<double> xogxog_Lamg(p,p);
+	vector<double> xogxog_Lamg; xogxog_Lamg.reserve(p*p);
 	Col<double> d(p); for(int i=0; i<p; ++i) d(i)=xoxo(i,i)+xaxa(i,i);
 	vector<double> xag; xag.reserve(na*p);
 	vector<double> lamg; lamg.reserve(p); //vector instead of diagonal pxp matrix
@@ -164,8 +164,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		{
 			p_gamma=sum(gamma);
 			if(p_gamma!=0){
-				inc_indices=find(gamma);
 				xag.resize(0);
+				xogxog_Lamg.resize(0);
 				xogyo.resize(0);
 				lamg.resize(0);
 				Bg.resize(0);
@@ -177,10 +177,10 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 						Bg.push_back(xoyo(i));
 						lamg.push_back(lam(i));
 						for(int j=0; j<na; ++j) xag.push_back(xa[i*na+j]);
+						for(int j=0; j<p; ++j) if(gamma(j)==1) xogxog_Lamg.push_back(xoxo[i*p+j]);
 					}
 				}
-				xogxog_Lamg=xoxo.submat(inc_indices,inc_indices);
-				for(int d=0; d<p_gamma; ++d)	xogxog_Lamg(d,d)=xogxog_Lamg(d,d)+lamg[d]; 
+				for(int i=0; i<p_gamma; ++i) xogxog_Lamg[i*p_gamma+i]+=lamg[i];
 				//Positive Definite Cholesky Factorization//
 				dpotrf_(&uplo, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &info); //xerbla handles info error
 				//xogxog_Lamg now stores R upper triangular where xogxog_Lamg=R'R
