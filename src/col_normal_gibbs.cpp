@@ -1,4 +1,5 @@
 #include <vector>
+#include <algorithm>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -40,7 +41,7 @@ inline void fixed_probabilities(Col<double> &prob, vector<double> &odds, Col<dou
 	}
 };
 
-inline void draw_collapsed_xaya(vector<double> &xaya, Mat<double> &xa, vector<double> &xag, vector<double> &mu, double phi, vector<double> &Z, vector<double> &xogxog_Lamg, int na, int p, int p_gamma){
+inline void draw_collapsed_xaya(vector<double> &xaya, vector<double> &xa, vector<double> &xag, vector<double> &mu, double phi, vector<double> &Z, vector<double> &xogxog_Lamg, int na, int p, int p_gamma){
 
 	double sd=sqrt(1/phi);
 	Z.resize(na);
@@ -92,13 +93,15 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	int na=rxa.nrow();
 
 	//Read RData Into Matrix Classes//
-	Mat<double> xo(rxo.begin(), no, p, false);
-	Mat<double> xa(rxa.begin(), na, p, false);
-	Col<double> yo(ryo.begin(), ryo.size(), false); yo-=mean(yo);
-	Col<double> lam(rlam.begin(),rlam.size(), false);
+	vector<double> xo(rxo.begin(), rxo.begin()+no*p);
+	vector<double> xa(rxa.begin(), rxa.begin()+na*p);
+	vector<double> yo(ryo.begin(), ryo.end()); 
+	double yobar=std::accumulate(yo.begin(),yo.end(),0.0)/yo.size();
+	for(vector<double>::iterator it=yo.begin(); it!=yo.end(); ++it) *it-=yobar;
+	vector<double> lam(rlam.begin(),rlam.end());
 	vector<double> d(rd.begin(),rd.end());
 	vector<double> xoxo(rxoxo.begin(),rxoxo.end());
-	Col<double> priorprob(rpriorprob.begin(),rpriorprob.size(), false);
+	vector<double> priorprob(rpriorprob.begin(),rpriorprob.end());
 	int niter=Rcpp::as<int >(rniter);
 	int burnin=Rcpp::as<int >(rburnin);
 
@@ -128,7 +131,6 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 
 	//Gamma Variables//
 	Col<uword> gamma(p,fill::zeros);
-	Col<uword> inc_indices(p,fill::ones);
 	vector<double> U(p);
 	Col<double> Bols(p,fill::zeros);
 	Col<double> prob(p,fill::ones);
@@ -137,8 +139,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	vector<double> ldl(p);
 	vector<double> dli(p);
 	for(int i=0; i<p; ++i){
-		priorodds[i]=priorprob(i)/(1-priorprob(i));
-		ldl[i]=sqrt(lam(i)/(d[i]+lam(i)));
+		priorodds[i]=priorprob[i]/(1-priorprob[i]);
+		ldl[i]=sqrt(lam[i]/(d[i]+lam[i]));
 		dli[i]=1/(d[i]+lam[i]);
 	}
 	bool gamma_diff=true;
@@ -174,7 +176,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 					{
 						xogyo.push_back(xoyo[i]);
 						Bg.push_back(xoyo[i]);
-						lamg.push_back(lam(i));
+						lamg.push_back(lam[i]);
 						for(int j=0; j<na; ++j) xag.push_back(xa[i*na+j]);
 						for(int j=0; j<p; ++j) if(gamma(j)==1) xogxog_Lamg.push_back(xoxo[i*p+j]);
 					}
