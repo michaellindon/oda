@@ -61,27 +61,22 @@ inline void draw_collapsed_xaya(vector<double> &xaya, vector<double> &xa, vector
 	}
 };
 
-inline void draw_gamma(Col<uword> &gamma, vector<double> prob, vector<double> &U){
+inline void draw_gamma(vector<int> &gamma, vector<double> prob, vector<double> &U){
 	for(vector<double>::iterator it=U.begin(); it!=U.end(); ++it) *it=R::runif(0,1);
 	for (int i = 0; i < prob.size() ; ++i)
 	{
 		if(U[i]<prob[i]){
-			gamma(i)=1;
+			gamma[i]=1;
 		}else{
-			gamma(i)=0;
+			gamma[i]=0;
 		}
 	}
 }
 
-inline bool gamma_change(const Mat<uword> &gamma_mcmc, int t){
+inline bool gamma_change(const vector<int> &gamma_mcmc, int t, int p){
 
-	if(sum(abs(gamma_mcmc.col(t)-gamma_mcmc.col(t-1)))==0)
-	{
-		return(false);
-	}else
-	{
-		return(true);
-	}
+	for(int i=0; i<p; ++i)	if(gamma_mcmc[t*p+i]!=gamma_mcmc[(t-1)*p+i]) return(true);
+	return(false);
 }
 
 // [[Rcpp::export]]
@@ -128,7 +123,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	vector<double> Bg; Bg.reserve(p);
 
 	//Gamma Variables//
-	Col<uword> gamma(p,fill::zeros);
+	vector<int> gamma(p);
 	vector<double> U(p);
 	vector<double> Bols(p);
 	vector<double> prob(p);
@@ -146,11 +141,11 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 
 	//Allocate Space for MCMC Draws//
 	vector<double> prob_mcmc(p*niter);
-	Mat<uword>  gamma_mcmc(p,niter);
+	vector<int>  gamma_mcmc(p*niter);
 	vector<double> phi_mcmc(niter);
-	phi_mcmc[0]=phi;
-	gamma_mcmc.col(0)=gamma;
 	std::copy(prob.begin(),prob.end(),prob_mcmc.begin());
+	std::copy(gamma.begin(),gamma.end(),gamma_mcmc.begin());
+	phi_mcmc[0]=phi;
 
 	//Begin Gibbs Sampling Algorithm//
 	for (int t = 1; t < niter; ++t)
@@ -158,7 +153,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		//If gamma[t]!=Gamma[t-1] Form Submatrices//
 		if(gamma_diff)
 		{
-			p_gamma=sum(gamma);
+			p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
 			if(p_gamma!=0){
 				xag.resize(0);
 				xogxog_Lamg.resize(0);
@@ -167,13 +162,13 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 				Bg.resize(0);
 				for(int i=0; i<p; ++i)
 				{
-					if(gamma(i)==1)
+					if(gamma[i]==1)
 					{
 						xogyo.push_back(xoyo[i]);
 						Bg.push_back(xoyo[i]);
 						lamg.push_back(lam[i]);
 						for(int j=0; j<na; ++j) xag.push_back(xa[i*na+j]);
-						for(int j=0; j<p; ++j) if(gamma(j)==1) xogxog_Lamg.push_back(xoxo[i*p+j]);
+						for(int j=0; j<p; ++j) if(gamma[j]==1) xogxog_Lamg.push_back(xoxo[i*p+j]);
 					}
 				}
 				for(int i=0; i<p_gamma; ++i) xogxog_Lamg[i*p_gamma+i]+=lamg[i];
@@ -202,12 +197,12 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 		draw_gamma(gamma,prob,U);
 
 		//Store Draws//
-		gamma_mcmc.col(t)=gamma;
+		std::copy(gamma.begin(),gamma.end(),gamma_mcmc.begin()+p*t);
 		std::copy(prob.begin(),prob.end(),prob_mcmc.begin()+p*t);
 		phi_mcmc[t]=phi;
 
 		//Has Gamma Changed?//
-		gamma_diff=gamma_change(gamma_mcmc,t);
+		gamma_diff=gamma_change(gamma_mcmc,t,p);
 
 	}
 
