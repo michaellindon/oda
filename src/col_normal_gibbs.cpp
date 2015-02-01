@@ -30,10 +30,10 @@ extern "C" {
 	double ddot_(int * N, double * DX, int * INCX, double * DY, int * INCY);
 }
 
-inline void fixed_probabilities(Col<double> &prob, vector<double> &odds, Col<double> &Bols, const Col<double> &d, const Col<double> &xoyo, const vector<double> &xaya, const Col<double> &priorodds, const Col<double> &ldl, const Col<double> &dli, double phi){
+inline void fixed_probabilities(Col<double> &prob, vector<double> &odds, Col<double> &Bols, const Col<double> &d, const vector<double> &xoyo, const vector<double> &xaya, const Col<double> &priorodds, const Col<double> &ldl, const Col<double> &dli, double phi){
 	for(int i=0; i<prob.n_elem; ++i)
 	{
-		Bols(i)=(1/d(i))*(xoyo(i)+xaya[i]);
+		Bols(i)=(1/d(i))*(xoyo[i]+xaya[i]);
 		odds[i]=priorodds(i)*ldl(i)*exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
 		prob(i)=odds[i]/(1+odds[i]);
 		if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN exponential
@@ -101,10 +101,10 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	int burnin=Rcpp::as<int >(rburnin);
 
 	//Create Matrices//
-	Col<double> xoyo=xo.t()*yo;
+	//Col<double> xoyo=xo.t()*yo;
+	vector<double> xoyo(p);
+	dgemv_(&transT , &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*xoyo.begin(), &inc);
 	vector<double> xogyo; xogyo.reserve(p);
-	//vector<double> xoyo(p);
-	//dgemv_(&transT , &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*yo.begin(), &inc);
 	Mat<double> xoxo=xo.t()*xo;
 	Mat<double> xaxa=xa.t()*xa;
 	vector<double> xogxog_Lamg; xogxog_Lamg.reserve(p*p);
@@ -173,8 +173,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 				{
 					if(gamma(i)==1)
 					{
-						xogyo.push_back(xoyo(i));
-						Bg.push_back(xoyo(i));
+						xogyo.push_back(xoyo[i]);
+						Bg.push_back(xoyo[i]);
 						lamg.push_back(lam(i));
 						for(int j=0; j<na; ++j) xag.push_back(xa[i*na+j]);
 						for(int j=0; j<p; ++j) if(gamma(j)==1) xogxog_Lamg.push_back(xoxo[i*p+j]);
