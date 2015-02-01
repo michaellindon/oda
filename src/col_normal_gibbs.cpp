@@ -1,8 +1,10 @@
+#include <vector>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
 using namespace Rcpp;
 using namespace arma;
+using namespace std;
 
 
 //LAPACK Variables//
@@ -28,41 +30,41 @@ extern "C" {
 	double ddot_(int * N, double * DX, int * INCX, double * DY, int * INCY);
 }
 
-inline void fixed_probabilities(Col<double> &prob, Col<double> &odds, Col<double> &Bols, const Col<double> &d, const Col<double> &xoyo, const Col<double> &xaya, const Col<double> &priorodds, const Col<double> &ldl, const Col<double> &dli, double phi){
+inline void fixed_probabilities(Col<double> &prob, vector<double> &odds, Col<double> &Bols, const Col<double> &d, const Col<double> &xoyo, const vector<double> &xaya, const Col<double> &priorodds, const Col<double> &ldl, const Col<double> &dli, double phi){
 	for(int i=0; i<prob.n_elem; ++i)
 	{
-		Bols(i)=(1/d(i))*(xoyo(i)+xaya(i));
-		odds(i)=priorodds(i)*ldl(i)*exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
-		prob(i)=odds(i)/(1+odds(i));
+		Bols(i)=(1/d(i))*(xoyo(i)+xaya[i]);
+		odds[i]=priorodds(i)*ldl(i)*exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
+		prob(i)=odds[i]/(1+odds[i]);
 		if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN exponential
 	}
 };
 
-inline void draw_collapsed_xaya(Col<double> &xaya, Mat<double> &xa, Mat<double> &xag, Col<double> &mu, double phi,Col<double> &Z, Mat<double> &xogxog_Lamg, int na, int p, int p_gamma){
+inline void draw_collapsed_xaya(vector<double> &xaya, Mat<double> &xa, Mat<double> &xag, vector<double> &mu, double phi, vector<double> &Z, Mat<double> &xogxog_Lamg, int na, int p, int p_gamma){
 
 	double sd=sqrt(1/phi);
-	Z.set_size(na);
-	for(Col<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=R::rnorm(0,1);
+	Z.resize(na);
+	for(vector<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=R::rnorm(0,1);
 	if(p_gamma!=0){
 		xaya=mu;
 		daxpy_(&p, &sd, &*Z.begin(), &inc, &*xaya.begin(), &inc);
-		Z.set_size(p_gamma);
-		for(Col<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=R::rnorm(0,1);
+		Z.resize(p_gamma);
+		for(vector<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=R::rnorm(0,1);
 		//Computes R^{-1}Z where xogxog_Lamg^{-1}=R^{-1}R^{-T}
 		dtrsv_(&uplo, &transN, &unit_tri, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &*Z.begin(), &inc);
 		dgemv_(&transN , &na, &p_gamma, &sd, &*xag.begin(), &na, &*Z.begin(), &inc, &inputscale1, &*xaya.begin(), &inc);
 		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
 	}else{
-		for(int i=0; i<p; ++i) xaya(i)=sd*Z(i);
+		for(int i=0; i<p; ++i) xaya[i]=sd*Z[i];
 		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
 	}
 };
 
-inline void draw_gamma(Col<uword> &gamma, Col<double> prob, Col<double> &U){
-	for(Col<double>::iterator it=U.begin(); it!=U.end(); ++it) *it=R::runif(0,1);
+inline void draw_gamma(Col<uword> &gamma, Col<double> prob, vector<double> &U){
+	for(vector<double>::iterator it=U.begin(); it!=U.end(); ++it) *it=R::runif(0,1);
 	for (int i = 0; i < prob.n_elem ; ++i)
 	{
-		if(U(i)<prob(i)){
+		if(U[i]<prob(i)){
 			gamma(i)=1;
 		}else{
 			gamma(i)=0;
@@ -101,6 +103,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	//Create Matrices//
 	Col<double> xoyo=xo.t()*yo;
 	Col<double> xogyo=xoyo;
+	//vector<double> xoyo(p);
+	//dgemv_(&transT , &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*yo.begin(), &inc);
 	Mat<double> xoxo=xo.t()*xo;
 	Mat<double> xaxa=xa.t()*xa;
 	Mat<double> xogxog_Lamg(p,p);
@@ -116,9 +120,9 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 
 	//Ya Variables//
 	Col<double> ya(na);
-	Col<double> mu(na);
-	Col<double> Z(na);
-	Col<double> xaya(p);
+	vector<double> mu(na);
+	vector<double> Z; Z.reserve(na);
+	vector<double> xaya(p);
 
 	//Beta Variables//
 	Col<double> Bg(p,fill::zeros);
@@ -126,17 +130,17 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	//Gamma Variables//
 	Col<uword> gamma(p,fill::zeros);
 	Col<uword> inc_indices(p,fill::ones);
-	Col<double> U(p);
+	vector<double> U(p);
 	Col<double> Bols(p,fill::zeros);
 	Col<double> prob(p,fill::ones);
-	Col<double> odds(p);
-	Col<double> priorodds(p);
-	Col<double> ldl(p);
-	Col<double> dli(p);
+	vector<double> odds(p);
+	vector<double> priorodds(p);
+	vector<double> ldl(p);
+	vector<double> dli(p);
 	for(int i=0; i<p; ++i){
-	priorodds(i)=priorprob(i)/(1-priorprob(i));
-	ldl(i)=sqrt(lam(i)/(d(i)+lam(i)));
-	dli(i)=1/(d(i)+lam(i));
+		priorodds[i]=priorprob(i)/(1-priorprob(i));
+		ldl[i]=sqrt(lam(i)/(d(i)+lam(i)));
+		dli[i]=1/(d(i)+lam(i));
 	}
 	bool gamma_diff=true;
 	int p_gamma;
