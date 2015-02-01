@@ -30,7 +30,7 @@ extern "C" {
 }
 
 inline void fixed_probabilities(vector<double> &prob, vector<double> &odds, vector<double> &Bols, const vector<double> &d, const vector<double> &xoyo, const vector<double> &xaya, const vector<double> &priorodds, const vector<double> &ldl, const vector<double> &dli, double phi){
-	for(int i=0; i<prob.size(); ++i)
+	for(size_t i=0; i!=prob.size(); ++i)
 	{
 		Bols[i]=(1/d[i])*(xoyo[i]+xaya[i]);
 		odds[i]=priorodds[i]*ldl[i]*exp(0.5*phi*dli[i]*d[i]*d[i]*Bols[i]*Bols[i]);
@@ -54,14 +54,14 @@ inline void draw_collapsed_xaya(vector<double> &xaya, vector<double> &xa, vector
 		dgemv_(&transN , &na, &p_gamma, &sd, &*xag.begin(), &na, &*Z.begin(), &inc, &inputscale1, &*xaya.begin(), &inc);
 		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
 	}else{
-		for(int i=0; i<p; ++i) xaya[i]=sd*Z[i];
+		for(size_t i=0; i!=xaya.size(); ++i) xaya[i]=sd*Z[i];
 		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
 	}
 };
 
 inline void draw_gamma(vector<int> &gamma, vector<double> prob, vector<double> &U){
 	for(vector<double>::iterator it=U.begin(); it!=U.end(); ++it) *it=R::runif(0,1);
-	for (int i = 0; i < prob.size() ; ++i)
+	for(size_t i = 0; i!=prob.size() ; ++i)
 	{
 		if(U[i]<prob[i]){
 			gamma[i]=1;
@@ -129,7 +129,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	vector<double> priorodds(p);
 	vector<double> ldl(p);
 	vector<double> dli(p);
-	for(int i=0; i<p; ++i){
+	for(size_t i=0; i!=priorodds.size(); ++i){
 		priorodds[i]=priorprob[i]/(1-priorprob[i]);
 		ldl[i]=sqrt(lam[i]/(d[i]+lam[i]));
 		dli[i]=1/(d[i]+lam[i]);
