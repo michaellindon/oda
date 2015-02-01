@@ -31,13 +31,13 @@ extern "C" {
 	double ddot_(int * N, double * DX, int * INCX, double * DY, int * INCY);
 }
 
-inline void fixed_probabilities(Col<double> &prob, vector<double> &odds, Col<double> &Bols, const Col<double> &d, const vector<double> &xoyo, const vector<double> &xaya, const Col<double> &priorodds, const Col<double> &ldl, const Col<double> &dli, double phi){
-	for(int i=0; i<prob.n_elem; ++i)
+inline void fixed_probabilities(vector<double> &prob, vector<double> &odds, vector<double> &Bols, const vector<double> &d, const vector<double> &xoyo, const vector<double> &xaya, const vector<double> &priorodds, const vector<double> &ldl, const vector<double> &dli, double phi){
+	for(int i=0; i<prob.size(); ++i)
 	{
-		Bols(i)=(1/d(i))*(xoyo[i]+xaya[i]);
-		odds[i]=priorodds(i)*ldl(i)*exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
-		prob(i)=odds[i]/(1+odds[i]);
-		if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN exponential
+		Bols[i]=(1/d[i])*(xoyo[i]+xaya[i]);
+		odds[i]=priorodds[i]*ldl[i]*exp(0.5*phi*dli[i]*d[i]*d[i]*Bols[i]*Bols[i]);
+		prob[i]=odds[i]/(1+odds[i]);
+		if(prob[i]!=prob[i]) prob[i]=1;	 //Catch NaN exponential
 	}
 };
 
@@ -61,11 +61,11 @@ inline void draw_collapsed_xaya(vector<double> &xaya, vector<double> &xa, vector
 	}
 };
 
-inline void draw_gamma(Col<uword> &gamma, Col<double> prob, vector<double> &U){
+inline void draw_gamma(Col<uword> &gamma, vector<double> prob, vector<double> &U){
 	for(vector<double>::iterator it=U.begin(); it!=U.end(); ++it) *it=R::runif(0,1);
-	for (int i = 0; i < prob.n_elem ; ++i)
+	for (int i = 0; i < prob.size() ; ++i)
 	{
-		if(U[i]<prob(i)){
+		if(U[i]<prob[i]){
 			gamma(i)=1;
 		}else{
 			gamma(i)=0;
@@ -106,7 +106,6 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	int burnin=Rcpp::as<int >(rburnin);
 
 	//Create Matrices//
-	//Col<double> xoyo=xo.t()*yo;
 	vector<double> xoyo(p);
 	dgemv_(&transT , &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*xoyo.begin(), &inc);
 	vector<double> xogyo; xogyo.reserve(p);
@@ -121,7 +120,6 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
 
 	//Ya Variables//
-	Col<double> ya(na);
 	vector<double> mu(na);
 	vector<double> Z; Z.reserve(na);
 	vector<double> xaya(p);
@@ -132,8 +130,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	//Gamma Variables//
 	Col<uword> gamma(p,fill::zeros);
 	vector<double> U(p);
-	Col<double> Bols(p,fill::zeros);
-	Col<double> prob(p,fill::ones);
+	vector<double> Bols(p);
+	vector<double> prob(p);
 	vector<double> odds(p);
 	vector<double> priorodds(p);
 	vector<double> ldl(p);
@@ -147,15 +145,12 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	int p_gamma;
 
 	//Allocate Space for MCMC Draws//
-	Mat<double> ya_mcmc(na,niter);
-	Mat<double> prob_mcmc(p,niter);
+	vector<double> prob_mcmc(p*niter);
 	Mat<uword>  gamma_mcmc(p,niter);
-	Col<double> phi_mcmc(niter);
-	ya_mcmc.col(0)=ya;
-	phi_mcmc(0)=phi;
+	vector<double> phi_mcmc(niter);
+	phi_mcmc[0]=phi;
 	gamma_mcmc.col(0)=gamma;
-	prob_mcmc.col(0)=prob;
-
+	std::copy(prob.begin(),prob.end(),prob_mcmc.begin());
 
 	//Begin Gibbs Sampling Algorithm//
 	for (int t = 1; t < niter; ++t)
@@ -208,9 +203,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 
 		//Store Draws//
 		gamma_mcmc.col(t)=gamma;
-		prob_mcmc.col(t)=prob;
-		ya_mcmc.col(t)=ya;
-		phi_mcmc(t)=phi;
+		std::copy(prob.begin(),prob.end(),prob_mcmc.begin()+p*t);
+		phi_mcmc[t]=phi;
 
 		//Has Gamma Changed?//
 		gamma_diff=gamma_change(gamma_mcmc,t);
@@ -222,9 +216,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	return Rcpp::List::create(
 			Rcpp::Named("phi_mcmc") = phi_mcmc,
 			Rcpp::Named("prob_mcmc") = prob_mcmc,
-			Rcpp::Named("prob") = mean(prob_mcmc.cols(burnin-1,niter-1),1),
-			Rcpp::Named("gamma_mcmc") = gamma_mcmc,
-			Rcpp::Named("ya_mcmc") = ya_mcmc
+			Rcpp::Named("gamma_mcmc") = gamma_mcmc
 			) ;
 }
 
