@@ -84,7 +84,7 @@ inline bool gamma_change(const Mat<uword> &gamma_mcmc, int t){
 }
 
 // [[Rcpp::export]]
-List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter){
+List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, NumericMatrix rxoxo, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rburnin, SEXP rniter){
 
 	//Dimensions//
 	int p=rxo.ncol();
@@ -96,6 +96,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	Mat<double> xa(rxa.begin(), na, p, false);
 	Col<double> yo(ryo.begin(), ryo.size(), false); yo-=mean(yo);
 	Col<double> lam(rlam.begin(),rlam.size(), false);
+	vector<double> d(rd.begin(),rd.end());
+	vector<double> xoxo(rxoxo.begin(),rxoxo.end());
 	Col<double> priorprob(rpriorprob.begin(),rpriorprob.size(), false);
 	int niter=Rcpp::as<int >(rniter);
 	int burnin=Rcpp::as<int >(rburnin);
@@ -105,10 +107,7 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	vector<double> xoyo(p);
 	dgemv_(&transT , &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*xoyo.begin(), &inc);
 	vector<double> xogyo; xogyo.reserve(p);
-	Mat<double> xoxo=xo.t()*xo;
-	Mat<double> xaxa=xa.t()*xa;
 	vector<double> xogxog_Lamg; xogxog_Lamg.reserve(p*p);
-	Col<double> d(p); for(int i=0; i<p; ++i) d(i)=xoxo(i,i)+xaxa(i,i);
 	vector<double> xag; xag.reserve(na*p);
 	vector<double> lamg; lamg.reserve(p); //vector instead of diagonal pxp matrix
 
@@ -139,8 +138,8 @@ List col_normal_gibbs(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxa, N
 	vector<double> dli(p);
 	for(int i=0; i<p; ++i){
 		priorodds[i]=priorprob(i)/(1-priorprob(i));
-		ldl[i]=sqrt(lam(i)/(d(i)+lam(i)));
-		dli[i]=1/(d(i)+lam(i));
+		ldl[i]=sqrt(lam(i)/(d[i]+lam(i)));
+		dli[i]=1/(d[i]+lam[i]);
 	}
 	bool gamma_diff=true;
 	int p_gamma;
