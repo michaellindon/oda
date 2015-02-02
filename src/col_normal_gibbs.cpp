@@ -2,7 +2,8 @@
 #include "oda.h"
 
 // [[Rcpp::export]]
-Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::NumericMatrix rxa, Rcpp::NumericMatrix rxoxo, Rcpp::NumericVector rd, Rcpp::NumericVector rlam, Rcpp::NumericVector rpriorprob, SEXP rburnin, SEXP rniter){
+Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::NumericMatrix rxa, Rcpp::NumericMatrix rxoxo, Rcpp::NumericVector rd, Rcpp::NumericVector rlam, Rcpp::NumericVector rpriorprob, SEXP rburnin, SEXP rniter)
+{
 
 	//Dimensions//
 	int p=rxo.ncol();
@@ -31,7 +32,7 @@ Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rc
 	std::vector<double> lamg; lamg.reserve(p); //vector instead of diagonal pxp matrix
 
 	//Phi Variables//
-	double a=(double)0.5*(no-1);
+	double a=0.5*((double)no-1.0);
 	double b=1.0;
 	double phi=1.0;
 	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
@@ -46,14 +47,14 @@ Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rc
 
 	//Gamma Variables//
 	std::vector<int> gamma(p);
-	std::vector<double> U(p);
 	std::vector<double> Bols(p);
 	std::vector<double> prob(p);
 	std::vector<double> odds(p);
 	std::vector<double> priorodds(p);
 	std::vector<double> ldl(p);
 	std::vector<double> dli(p);
-	for(size_t i=0; i!=priorodds.size(); ++i){
+	for(size_t i=0; i!=priorodds.size(); ++i)
+	{
 		priorodds[i]=priorprob[i]/(1-priorprob[i]);
 		ldl[i]=sqrt(lam[i]/(d[i]+lam[i]));
 		dli[i]=1/(d[i]+lam[i]);
@@ -71,16 +72,19 @@ Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rc
 
 
 
-	//Begin Gibbs Sampling Algorithm//
+	//Run Gibbs Sampler//
 	for (int t = 1; t < niter; ++t)
 	{
 		//If gamma[t]!=Gamma[t-1] Form Submatrices//
 		if(gamma_diff)
 		{
 			p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
-			if(p_gamma!=0){
+			if(p_gamma!=0)
+			{
 				submatrices_collapsed(mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,b,yoyo,p,na);
-			}else{
+			}else
+			{
+				a=0.5*((double)no-1.0);
 				b=0.5*yoyo;
 			}
 		}
@@ -107,14 +111,10 @@ Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rc
 
 
 	//Return Data to R//
-	return Rcpp::List::create(
-			Rcpp::Named("phi_mcmc") = phi_mcmc,
-			Rcpp::Named("prob_mcmc") = prob_mcmc,
-			Rcpp::Named("gamma_mcmc") = gamma_mcmc
-			) ;
+	return Rcpp::List::create
+		(
+		 Rcpp::Named("phi_mcmc") = phi_mcmc,
+		 Rcpp::Named("prob_mcmc") = prob_mcmc,
+		 Rcpp::Named("gamma_mcmc") = gamma_mcmc
+		) ;
 }
-
-
-//Notes: Lam is O(pxp) space complexity, terrible, just use lam O(p) instead.
-//Better to pass xoxo and d instead of xoxo & xaxa and computing d inside the code, as this requires O(pxp) instead of O(p) [xa is needed anyway] and xa.t()*xa takes forever
-//dtritri otherwise need to do dpotrs and then dpotrf again

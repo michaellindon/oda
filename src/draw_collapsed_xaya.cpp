@@ -10,7 +10,6 @@ void draw_collapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std
 		daxpy_(&p, &sd, &*Z.begin(), &inc, &*xaya.begin(), &inc);
 		Z.resize(p_gamma);
 		for(std::vector<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=Rf_rnorm(0,1);
-		//Computes R^{-1}Z where xogxog_Lamg^{-1}=R^{-1}R^{-T}
 		dtrsv_(&uplo, &transN, &unit_tri, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &*Z.begin(), &inc);
 		dgemv_(&transN , &na, &p_gamma, &sd, &*xag.begin(), &na, &*Z.begin(), &inc, &inputscale1, &*xaya.begin(), &inc);
 		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
