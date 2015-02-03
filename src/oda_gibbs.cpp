@@ -77,7 +77,7 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 	//Run Gibbs Sampler//
 	for (int t = 1; t < niter; ++t)
 	{
-		//If gamma[t]!=Gamma[t-1] Form Submatrices//
+		//Form Submatrices If gamma[t]!=Gamma[t-1]//
 		if(gamma_diff)
 		{
 			if(p_gamma!=0)
@@ -90,11 +90,14 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 			}
 		}
 
+
 		//Draw Phi//
 		phi=Rf_rgamma(a,(1.0/b)); //rgamma uses scale
 
+
 		//Draw Ya//
 		draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p,p_gamma);
+
 
 		//Draw Gamma//
 		if(modelprior=="bernoulli")
@@ -105,25 +108,27 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 			betabinomial_probabilities(prob,odds,Bols,d,xoyo,xaya,theta,lam,phi);
 		}
 		draw_gamma(gamma,prob);
-		p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
 
 
 		//Draw Theta//
-		if(modelprior=="betabinomial") 
-			theta=Rf_rbeta(beta1+p_gamma,p-p_gamma+beta2);
+		p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
+		if(modelprior=="betabinomial") theta=Rf_rbeta(beta1+p_gamma,p-p_gamma+beta2);
+
 
 		//Draw Beta//
 		draw_beta(gamma,B,Bols,d,lam,phi);
 
+
 		//Draw Lambda//
-		if(scalemixture)
-			draw_lambda_t(lam,gamma,alpha,B,phi);
+		if(scalemixture) draw_lambda_t(lam,gamma,alpha,B,phi);
+
 
 		//Store Draws//
 		std::copy(gamma.begin(),gamma.end(),gamma_mcmc.begin()+p*t);
 		std::copy(prob.begin(),prob.end(),prob_mcmc.begin()+p*t);
 		std::copy(B.begin(),B.end(),B_mcmc.begin()+p*t);
 		phi_mcmc[t]=phi;
+
 
 		//Has Gamma Changed?//
 		gamma_diff=gamma_change(gamma_mcmc,t,p);
