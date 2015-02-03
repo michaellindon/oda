@@ -2,7 +2,7 @@
 #include "oda.h"
 
 // [[Rcpp::export]]
-Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::NumericMatrix rxa, Rcpp::NumericMatrix rxoxo, Rcpp::NumericVector rd, Rcpp::NumericVector rlam, Rcpp::NumericVector rpriorprob, SEXP rburnin, SEXP rniter)
+Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::NumericMatrix rxa, Rcpp::NumericMatrix rxoxo, Rcpp::NumericVector rd, Rcpp::NumericVector rlam, Rcpp::NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP rscalemixture, SEXP ralpha)
 {
 
 	//Dimensions//
@@ -22,6 +22,8 @@ Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rc
 	std::vector<double> priorprob(rpriorprob.begin(),rpriorprob.end());
 	int niter=Rcpp::as<int >(rniter);
 	int burnin=Rcpp::as<int >(rburnin);
+	int scalemixture=Rcpp::as<bool >(rscalemixture);
+	double alpha=Rcpp::as<double >(ralpha);
 
 	//Create Matrices//
 	std::vector<double> xoyo(p);
@@ -43,6 +45,7 @@ Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rc
 	std::vector<double> xaya(p);
 
 	//Beta Variables//
+	std::vector<double> B(p,0.0);
 	std::vector<double> Bg; Bg.reserve(p);
 
 	//Gamma Variables//
@@ -50,22 +53,15 @@ Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rc
 	std::vector<double> Bols(p);
 	std::vector<double> prob(p);
 	std::vector<double> odds(p);
-	std::vector<double> priorodds(p);
-	std::vector<double> ldl(p);
-	std::vector<double> dli(p);
-	for(size_t i=0; i!=priorodds.size(); ++i)
-	{
-		priorodds[i]=priorprob[i]/(1-priorprob[i]);
-		ldl[i]=sqrt(lam[i]/(d[i]+lam[i]));
-		dli[i]=1/(d[i]+lam[i]);
-	}
 	bool gamma_diff=true;
 	int p_gamma;
 
 	//Allocate Space for MCMC Draws//
+	std::vector<double> B_mcmc(p*niter);
 	std::vector<double> prob_mcmc(p*niter);
 	std::vector<int>  gamma_mcmc(p*niter);
 	std::vector<double> phi_mcmc(niter);
+	std::copy(B.begin(),B.end(),B_mcmc.begin());
 	std::copy(prob.begin(),prob.end(),prob_mcmc.begin());
 	std::copy(gamma.begin(),gamma.end(),gamma_mcmc.begin());
 	phi_mcmc[0]=phi;
@@ -96,12 +92,20 @@ Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rc
 		draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p,p_gamma);
 
 		//Draw Gamma//
-		fixed_probabilities(prob, odds, Bols, d, xoyo, xaya, priorodds, ldl, dli, phi);
+		fixed_probabilities(prob, odds, Bols, d, xoyo, xaya, priorprob, lam, phi);
 		draw_gamma(gamma,prob);
+
+		//Draw Beta//
+		draw_beta(gamma,B,Bols,d,lam,phi);
+
+		//Draw Lambda//
+		if(scalemixture)
+		draw_lambda_t(lam,gamma,alpha,B,phi);
 
 		//Store Draws//
 		std::copy(gamma.begin(),gamma.end(),gamma_mcmc.begin()+p*t);
 		std::copy(prob.begin(),prob.end(),prob_mcmc.begin()+p*t);
+		std::copy(B.begin(),B.end(),B_mcmc.begin()+p*t);
 		phi_mcmc[t]=phi;
 
 		//Has Gamma Changed?//
@@ -113,6 +117,7 @@ Rcpp::List col_normal_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rc
 	//Return Data to R//
 	return Rcpp::List::create
 		(
+		 Rcpp::Named("B_mcmc") = B_mcmc,
 		 Rcpp::Named("phi_mcmc") = phi_mcmc,
 		 Rcpp::Named("prob_mcmc") = prob_mcmc,
 		 Rcpp::Named("gamma_mcmc") = gamma_mcmc
