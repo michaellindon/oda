@@ -1,6 +1,6 @@
 #include "oda.h"
 
-void fixed_probabilities(std::vector<double> &prob, std::vector<double> &odds, std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &xoyo, const std::vector<double> &xaya, const std::vector<double> &priorprob, const std::vector<double> &lam, const double phi){
+void bernoulli_probabilities(std::vector<double> &prob, std::vector<double> &odds, std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &xoyo, const std::vector<double> &xaya, const std::vector<double> &priorprob, const std::vector<double> &lam, const double phi){
 	for(size_t i=0; i!=prob.size(); ++i)
 	{
 		Bols[i]=(1/d[i])*(xoyo[i]+xaya[i]);

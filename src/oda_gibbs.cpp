@@ -2,7 +2,7 @@
 #include "oda.h"
 
 // [[Rcpp::export]]
-Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::NumericMatrix rxa, Rcpp::NumericMatrix rxoxo, Rcpp::NumericVector rd, Rcpp::NumericVector rlam, Rcpp::NumericVector rpriorprob, SEXP rburnin, SEXP rniter, SEXP rscalemixture, SEXP ralpha)
+Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::NumericMatrix rxa, Rcpp::NumericMatrix rxoxo, Rcpp::NumericVector rd, Rcpp::NumericVector rlam, SEXP rmodelprior, Rcpp::NumericVector rpriorprob, SEXP rbeta1, SEXP rbeta2, SEXP rburnin, SEXP rniter, SEXP rscalemixture, SEXP ralpha)
 {
 
 	//Dimensions//
@@ -19,11 +19,14 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 	std::vector<double> lam(rlam.begin(),rlam.end());
 	std::vector<double> d(rd.begin(),rd.end());
 	std::vector<double> xoxo(rxoxo.begin(),rxoxo.end());
-	std::vector<double> priorprob(rpriorprob.begin(),rpriorprob.end());
 	int niter=Rcpp::as<int >(rniter);
 	int burnin=Rcpp::as<int >(rburnin);
 	int scalemixture=Rcpp::as<bool >(rscalemixture);
 	double alpha=Rcpp::as<double >(ralpha);
+	std::string modelprior=Rcpp::as<std::string >(rmodelprior);
+	double beta1=Rcpp::as<double >(rbeta1);
+	double beta2=Rcpp::as<double >(rbeta2);
+	std::vector<double> priorprob(rpriorprob.begin(),rpriorprob.end());
 
 	//Create Matrices//
 	std::vector<double> xoyo(p);
@@ -49,12 +52,15 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 	std::vector<double> Bg; Bg.reserve(p);
 
 	//Gamma Variables//
-	std::vector<int> gamma(p);
+	std::vector<int> gamma(p,0);
 	std::vector<double> Bols(p);
 	std::vector<double> prob(p);
 	std::vector<double> odds(p);
 	bool gamma_diff=true;
-	int p_gamma;
+	int p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
+
+	//Theta Variables//
+	double theta=0.5;
 
 	//Allocate Space for MCMC Draws//
 	std::vector<double> B_mcmc(p*niter);
@@ -74,7 +80,6 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 		//If gamma[t]!=Gamma[t-1] Form Submatrices//
 		if(gamma_diff)
 		{
-			p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
 			if(p_gamma!=0)
 			{
 				submatrices_collapsed(mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,b,yoyo,p,na);
@@ -92,15 +97,27 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 		draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p,p_gamma);
 
 		//Draw Gamma//
-		fixed_probabilities(prob, odds, Bols, d, xoyo, xaya, priorprob, lam, phi);
+		if(modelprior=="bernoulli")
+		{
+			bernoulli_probabilities(prob,odds,Bols,d,xoyo,xaya,priorprob,lam,phi);
+		}else
+		{
+			betabinomial_probabilities(prob,odds,Bols,d,xoyo,xaya,theta,lam,phi);
+		}
 		draw_gamma(gamma,prob);
+		p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
+
+
+		//Draw Theta//
+		if(modelprior=="betabinomial") 
+			theta=Rf_rbeta(beta1+p_gamma,p-p_gamma+beta2);
 
 		//Draw Beta//
 		draw_beta(gamma,B,Bols,d,lam,phi);
 
 		//Draw Lambda//
 		if(scalemixture)
-		draw_lambda_t(lam,gamma,alpha,B,phi);
+			draw_lambda_t(lam,gamma,alpha,B,phi);
 
 		//Store Draws//
 		std::copy(gamma.begin(),gamma.end(),gamma_mcmc.begin()+p*t);

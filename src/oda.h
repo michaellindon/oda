@@ -5,6 +5,7 @@
 #include <R.h>
 #include <vector>
 #include <numeric>
+#include <string>
 
 //LAPACK Variables//
 extern char uplo;
@@ -31,11 +32,17 @@ extern "C" {
 
 void submatrices_collapsed(std::vector<double> &mu, std::vector<double> &xag, std::vector<double> &xogxog_Lamg, std::vector<double> &xogyo, std::vector<double> &lamg, std::vector<double> &Bg, const std::vector<int> &gamma, const std::vector<double> &xoyo, const std::vector<double> &lam, const std::vector<double> &xa, const std::vector<double> &xoxo,  int p_gamma, double &b, const double yoyo, int p, int na);
 
-void fixed_probabilities(std::vector<double> &prob, std::vector<double> &odds, std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &xoyo, const std::vector<double> &xaya, const std::vector<double> &priorodds, const std::vector<double> &ldl, const std::vector<double> &dli, double phi);
+void bernoulli_probabilities(std::vector<double> &prob, std::vector<double> &odds, std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &xoyo, const std::vector<double> &xaya, const std::vector<double> &priorprob, const std::vector<double> &lam, const double phi);
+
+void betabinomial_probabilities(std::vector<double> &prob, std::vector<double> &odds, std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &xoyo, const std::vector<double> &xaya, const double theta, const std::vector<double> &lam, const double phi);
 
 void draw_collapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &mu, double phi, std::vector<double> &Z, std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma);
 
 void draw_gamma(std::vector<int> &gamma, const std::vector<double> prob);
+
+void draw_beta(const std::vector<int> &gamma, std::vector<double> &B, const std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &lam, double phi);
+
+void draw_lambda_t( std::vector<double> &lam, const std::vector<int> &gamma, const double alpha, const std::vector<double> &B, const double phi);
 
 bool gamma_change(const std::vector<int> &gamma_mcmc, int t, int p);
 
