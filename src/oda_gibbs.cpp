@@ -2,7 +2,7 @@
 #include "oda.h"
 
 // [[Rcpp::export]]
-Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::NumericMatrix rxa, Rcpp::NumericMatrix rxoxo, Rcpp::NumericVector rd, Rcpp::NumericVector rlam, SEXP rmodelprior, Rcpp::NumericVector rpriorprob, SEXP rbeta1, SEXP rbeta2, SEXP rburnin, SEXP rniter, SEXP rscalemixture, SEXP ralpha)
+Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::NumericMatrix rxa, Rcpp::NumericMatrix rxoxo, Rcpp::NumericVector rd, Rcpp::NumericVector rlam, SEXP rmodelprior, Rcpp::NumericVector rpriorprob, SEXP rbeta1, SEXP rbeta2, SEXP rburnin, SEXP rniter, SEXP rscalemixture, SEXP ralpha, SEXP rcollapsed)
 {
 
 	//Dimensions//
@@ -14,19 +14,21 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 	std::vector<double> xo(rxo.begin(), rxo.begin()+no*p);
 	std::vector<double> xa(rxa.begin(), rxa.begin()+na*p);
 	std::vector<double> yo(ryo.begin(), ryo.end()); 
-	double yobar=std::accumulate(yo.begin(),yo.end(),0.0)/yo.size();
-	for(std::vector<double>::iterator it=yo.begin(); it!=yo.end(); ++it) *it-=yobar;
 	std::vector<double> lam(rlam.begin(),rlam.end());
 	std::vector<double> d(rd.begin(),rd.end());
 	std::vector<double> xoxo(rxoxo.begin(),rxoxo.end());
+	std::vector<double> priorprob(rpriorprob.begin(),rpriorprob.end());
+	std::string modelprior=Rcpp::as<std::string >(rmodelprior);
 	int niter=Rcpp::as<int >(rniter);
 	int burnin=Rcpp::as<int >(rburnin);
 	int scalemixture=Rcpp::as<bool >(rscalemixture);
+	int collapsed=Rcpp::as<bool >(rcollapsed);
 	double alpha=Rcpp::as<double >(ralpha);
-	std::string modelprior=Rcpp::as<std::string >(rmodelprior);
 	double beta1=Rcpp::as<double >(rbeta1);
 	double beta2=Rcpp::as<double >(rbeta2);
-	std::vector<double> priorprob(rpriorprob.begin(),rpriorprob.end());
+
+	double yobar=std::accumulate(yo.begin(),yo.end(),0.0)/yo.size();
+	for(std::vector<double>::iterator it=yo.begin(); it!=yo.end(); ++it) *it-=yobar;
 
 	//Create Matrices//
 	std::vector<double> xoyo(p);
@@ -34,6 +36,7 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 	std::vector<double> xogyo; xogyo.reserve(p);
 	std::vector<double> xogxog_Lamg; xogxog_Lamg.reserve(p*p);
 	std::vector<double> xag; xag.reserve(na*p);
+	std::vector<double> xog; xog.reserve(no*p);
 	std::vector<double> lamg; lamg.reserve(p); //vector instead of diagonal pxp matrix
 
 	//Phi Variables//
@@ -77,27 +80,40 @@ Rcpp::List oda_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Num
 	//Run Gibbs Sampler//
 	for (int t = 1; t < niter; ++t)
 	{
-		//Form Submatrices If gamma[t]!=Gamma[t-1]//
-		if(gamma_diff)
+
+		//Form Submatrices//
+		if(p_gamma)
 		{
-			if(p_gamma!=0)
+			if(collapsed && scalemixture)
 			{
-				submatrices_collapsed(mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,b,yoyo,p,na);
+				submatrices_collapsed(gamma_diff,mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,b,yoyo,p,na);
+			}else if(collapsed && !scalemixture && gamma_diff)
+			{
+				submatrices_collapsed(gamma_diff,mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,b,yoyo,p,na);
 			}else
 			{
-				a=0.5*((double)no-1.0);
-				b=0.5*yoyo;
+				submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,b,p,no,na);
 			}
 		}
 
 
 		//Draw Phi//
-		phi=Rf_rgamma(a,(1.0/b)); //rgamma uses scale
-
+		if(collapsed)
+		{
+			phi=draw_collapsed_phi(a,b,p_gamma,no, yoyo,xogyo,Bg);
+		}else
+		{
+			phi=draw_uncollapsed_phi(p_gamma,no,yo,xog,Bg,lamg,yoyo);
+		}
 
 		//Draw Ya//
-		draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p,p_gamma);
-
+		if(collapsed)
+		{
+			draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p,p_gamma);
+		}else
+		{
+			draw_uncollapsed_xaya(xaya,xa,xag,Bg,phi,Z,na,p,p_gamma);
+		}
 
 		//Draw Gamma//
 		if(modelprior=="bernoulli")
