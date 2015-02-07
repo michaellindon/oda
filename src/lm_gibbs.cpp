@@ -1,6 +1,6 @@
 #include "oda.h"
 
-extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxoxo, double * rd, double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * rprob_mcmc, double * gamma_mcmc, double * phi_mcmc, double * B_rb, double * prob_rb)
+extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxoxo, double * rd, double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, double * gamma_mcmc, double * phi_mcmc, double * B_rb, double * prob_rb)
 {
 	//MCMC Variables//
 	int burnin=*rburnin;
@@ -68,7 +68,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxox
 
 	//Store Initial Values//
 	std::copy(B.begin(),B.end(),B_mcmc);
-	std::copy(prob.begin(),prob.end(),rprob_mcmc);
+	std::copy(prob.begin(),prob.end(),prob_mcmc);
 	std::copy(gamma.begin(),gamma.end(),gamma_mcmc);
 	phi_mcmc[0]=phi;
 
@@ -128,7 +128,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxox
 
 		//Store Draws//
 		std::copy(gamma.begin(),gamma.end(),(gamma_mcmc+p*t));
-		std::copy(prob.begin(),prob.end(),(rprob_mcmc+p*t));
+		std::copy(prob.begin(),prob.end(),(prob_mcmc+p*t));
 		std::copy(B.begin(),B.end(),(B_mcmc+p*t));
 		phi_mcmc[t]=phi;
 
