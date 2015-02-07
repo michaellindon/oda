@@ -29,7 +29,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxox
 	//Yo Variables//
 	std::vector<double> yo(ryo, ryo+no); 
 	double yobar=std::accumulate(yo.begin(),yo.end(),0.0)/yo.size();
-	for(std::vector<double>::iterator it=yo.begin(); it!=yo.end(); ++it) *it-=yobar;
+	std::transform(yo.begin(),yo.end(),yo.begin(),bind2nd(std::minus<double>(),yobar));	
 	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
 	std::vector<double> xoyo(p);
 	dgemv_( &transT, &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*xoyo.begin(), &inc);
