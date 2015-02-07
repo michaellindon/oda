@@ -1,36 +1,34 @@
-#include <Rcpp.h>
 #include "oda.h"
+#include <iostream>
 
-// [[Rcpp::export]]
-Rcpp::List lm_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::NumericMatrix rxa, Rcpp::NumericMatrix rxoxo, Rcpp::NumericVector rd, Rcpp::NumericVector rlam, SEXP rmodelprior, Rcpp::NumericVector rpriorprob, SEXP rbeta1, SEXP rbeta2, SEXP rburnin, SEXP rniter, SEXP rscalemixture, SEXP ralpha, SEXP rcollapsed)
+extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxoxo, double * rd, double * rlam, char * rmodelprior, int * rmodelpriorlength, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * rprob_mcmc, double * gamma_mcmc, double * phi_mcmc)
 {
-
 	//MCMC Variables//
-	int burnin=Rcpp::as<int >(rburnin);
-	int niter=Rcpp::as<int >(rniter);
-	bool collapsed=Rcpp::as<bool >(rcollapsed);
+	int burnin=*rburnin;
+	int niter=*rniter;
+	int collapsed=*rcollapsed;
 
 	//Dimensions//
-	int p=rxo.ncol();
-	int no=rxo.nrow();
-	int na=rxa.nrow();
+	int p=*rp;
+	int no=*rno;
+	int na=*rna;
 
 	//Create Model Matrices//
-	std::vector<double> d(rd.begin(),rd.end());
-	std::vector<double> xo(rxo.begin(), rxo.begin()+no*p);
-	std::vector<double> xa(rxa.begin(), rxa.begin()+na*p);
+	std::vector<double> d(rd,rd+p);
+	std::vector<double> xo(rxo, rxo+no*p);
+	std::vector<double> xa(rxa, rxa+na*p);
 	std::vector<double> xog; xog.reserve(no*p);
 	std::vector<double> xag; xag.reserve(na*p);
-	std::vector<double> xoxo(rxoxo.begin(),rxoxo.end());
+	std::vector<double> xoxo(rxoxo,rxoxo+p*p);
 	std::vector<double> xogyo; xogyo.reserve(p);
 	std::vector<double> xogxog_Lamg; xogxog_Lamg.reserve(p*p);
 
 	//Phi Variables//
 	double b=1.0;
-	double phi=1.0;
+	double phi=1.1;
 
 	//Yo Variables//
-	std::vector<double> yo(ryo.begin(), ryo.end()); 
+	std::vector<double> yo(ryo, ryo+no); 
 	double yobar=std::accumulate(yo.begin(),yo.end(),0.0)/yo.size();
 	for(std::vector<double>::iterator it=yo.begin(); it!=yo.end(); ++it) *it-=yobar;
 	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
@@ -48,37 +46,31 @@ Rcpp::List lm_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Nume
 	std::vector<double> Bg; Bg.reserve(p);
 
 	//Lambda Variables//
-	int scalemixture=Rcpp::as<bool >(rscalemixture);
-	double alpha=Rcpp::as<double >(ralpha);
-	std::vector<double> lam(rlam.begin(),rlam.end());
+	int scalemixture=*rscalemixture;
+	double alpha=*ralpha;
+	std::vector<double> lam(rlam,rlam+p);
 	std::vector<double> lamg; lamg.reserve(p); //vector instead of diagonal pxp matrix
 
 	//Gamma Variables//
 	std::vector<int> gamma(p,0);
 	int p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
 	bool gamma_diff=true;
-	std::string modelprior=Rcpp::as<std::string >(rmodelprior);
+	std::string modelprior(rmodelprior,rmodelprior+*rmodelpriorlength);
 
 	//Probability Variables//
 	std::vector<double> prob(p);
 	std::vector<double> odds(p);
-	std::vector<double> priorprob(rpriorprob.begin(),rpriorprob.end());
+	std::vector<double> priorprob(rpriorprob,rpriorprob+p);
 
 	//Theta Variables//
 	double theta=0.5;
-	double beta1=Rcpp::as<double >(rbeta1);
-	double beta2=Rcpp::as<double >(rbeta2);
-
-	//Allocate Space for MCMC Draws//
-	std::vector<double> B_mcmc(p*niter);
-	std::vector<double> prob_mcmc(p*niter);
-	std::vector<int>  gamma_mcmc(p*niter);
-	std::vector<double> phi_mcmc(niter);
+	double beta1=*rbeta1;
+	double beta2=*rbeta2;
 
 	//Store Initial Values//
-	std::copy(B.begin(),B.end(),B_mcmc.begin());
-	std::copy(prob.begin(),prob.end(),prob_mcmc.begin());
-	std::copy(gamma.begin(),gamma.end(),gamma_mcmc.begin());
+	std::copy(B.begin(),B.end(),B_mcmc);
+	std::copy(prob.begin(),prob.end(),rprob_mcmc);
+	std::copy(gamma.begin(),gamma.end(),gamma_mcmc);
 	phi_mcmc[0]=phi;
 
 	//Run Gibbs Sampler//
@@ -136,24 +128,14 @@ Rcpp::List lm_gibbs(Rcpp::NumericVector ryo, Rcpp::NumericMatrix rxo, Rcpp::Nume
 
 
 		//Store Draws//
-		std::copy(gamma.begin(),gamma.end(),gamma_mcmc.begin()+p*t);
-		std::copy(prob.begin(),prob.end(),prob_mcmc.begin()+p*t);
-		std::copy(B.begin(),B.end(),B_mcmc.begin()+p*t);
+		std::copy(gamma.begin(),gamma.end(),(gamma_mcmc+p*t));
+		std::copy(prob.begin(),prob.end(),(rprob_mcmc+p*t));
+		std::copy(B.begin(),B.end(),(B_mcmc+p*t));
 		phi_mcmc[t]=phi;
 
-
 		//Has Gamma Changed?//
-		gamma_diff=gamma_change(gamma_mcmc,t,p);
+//		gamma_diff=gamma_change(gamma_mcmc,t,p);
+		gamma_diff=TRUE;
 
 	}
-
-
-	//Return Data to R//
-	return Rcpp::List::create
-		(
-		 Rcpp::Named("B_mcmc") = B_mcmc,
-		 Rcpp::Named("phi_mcmc") = phi_mcmc,
-		 Rcpp::Named("prob_mcmc") = prob_mcmc,
-		 Rcpp::Named("gamma_mcmc") = gamma_mcmc
-		) ;
 }
