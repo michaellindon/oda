@@ -1,7 +1,6 @@
 #include "oda.h"
-#include <iostream>
 
-extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxoxo, double * rd, double * rlam, char * rmodelprior, int * rmodelpriorlength, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * rprob_mcmc, double * gamma_mcmc, double * phi_mcmc)
+extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxoxo, double * rd, double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * rprob_mcmc, double * gamma_mcmc, double * phi_mcmc, double * B_rb, double * prob_rb)
 {
 	//MCMC Variables//
 	int burnin=*rburnin;
@@ -25,7 +24,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxox
 
 	//Phi Variables//
 	double b=1.0;
-	double phi=1.1;
+	double phi=1.0;
 
 	//Yo Variables//
 	std::vector<double> yo(ryo, ryo+no); 
@@ -55,7 +54,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxox
 	std::vector<int> gamma(p,0);
 	int p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
 	bool gamma_diff=true;
-	std::string modelprior(rmodelprior,rmodelprior+*rmodelpriorlength);
+	int modelprior=*rmodelprior;
 
 	//Probability Variables//
 	std::vector<double> prob(p);
@@ -100,10 +99,10 @@ extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxox
 		}
 
 		//Compute Probabilities//
-		if(modelprior=="bernoulli")
+		if(modelprior==1)
 		{
 			bernoulli_probabilities(prob,odds,Bols,d,xoyo,xaya,priorprob,lam,phi);
-		}else if(modelprior=="betabinomial")
+		}else if(modelprior==2)
 		{
 			betabinomial_probabilities(prob,odds,Bols,d,xoyo,xaya,theta,lam,phi);
 		}else
@@ -116,7 +115,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxox
 
 
 		//Draw Theta//
-		if(modelprior=="betabinomial") theta=Rf_rbeta(beta1+p_gamma,p-p_gamma+beta2);
+		if(modelprior==2) theta=Rf_rbeta(beta1+p_gamma,p-p_gamma+beta2);
 
 
 		//Draw Beta//
@@ -133,9 +132,11 @@ extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxox
 		std::copy(B.begin(),B.end(),(B_mcmc+p*t));
 		phi_mcmc[t]=phi;
 
+		//Rao Blackwell//
+		if(t>=burnin) rao_blackwell(B_rb,prob_rb,B,prob,burnin,niter);
+
 		//Has Gamma Changed?//
-//		gamma_diff=gamma_change(gamma_mcmc,t,p);
-		gamma_diff=TRUE;
+		gamma_diff=gamma_change(gamma_mcmc,t,p);
 
 	}
 }
