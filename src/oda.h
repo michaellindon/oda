@@ -56,6 +56,7 @@ void draw_beta(const std::vector<int> &gamma, std::vector<double> &B, const std:
 
 void draw_lambda_t( std::vector<double> &lam, const std::vector<int> &gamma, const double alpha, const std::vector<double> &B, const double phi);
 
-bool gamma_change(const std::vector<int> &gamma_mcmc, int t, int p);
+bool gamma_change(const int * gamma_mcmc, int t, int p);
 
+void rao_blackwell(double * B_rb, double * prob_rb, const std::vector<double> B, const std::vector<double> prob, int burnin, int niter);
 #endif
