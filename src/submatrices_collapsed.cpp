@@ -6,30 +6,32 @@ void submatrices_collapsed(const bool gamma_diff, std::vector<double> &mu, std::
 	{
 		xag.resize(0);
 		xogyo.resize(0);
+		xogxog_Lamg.resize(0);
 		for(int i=0; i<p; ++i)
 		{
 			if(gamma[i]==1)
 			{
 				xogyo.push_back(xoyo[i]);
-				for(int j=0; j<na; ++j) xag.push_back(xa[i*na+j]);
+				for(int j=0; j<na; ++j) xag.push_back(xa[i*na+j]); 
+				for(int j=0; j<p; ++j) if(gamma[j]==1) xogxog_Lamg.push_back(xoxo[i*p+j]);
 			}
 		}
 	}
 
-	xogxog_Lamg.resize(0);
 	lamg.resize(0);
 	Bg.resize(0);
+	int j=0;
 	for(int i=0; i<p; ++i)
 	{
 		if(gamma[i]==1)
 		{
 			Bg.push_back(xoyo[i]);
 			lamg.push_back(lam[i]);
-			for(int j=0; j<p; ++j) if(gamma[j]==1) xogxog_Lamg.push_back(xoxo[i*p+j]);
+			xogxog_Lamg[j*p_gamma+j]=xoxo[i*p+i]+lam[i];
+			++j;
 		}
 	}
-	
-	for(int i=0; i<p_gamma; ++i) xogxog_Lamg[i*p_gamma+i]+=lamg[i];
+
 	dpotrf_( &uplo, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &info); //xerbla handles info error
 	dpotrs_( &uplo, &p_gamma, &nrhs, &*xogxog_Lamg.begin(), &p_gamma, &*Bg.begin(), &p_gamma, &info);
 	b=0.5*(yoyo-ddot_(&p_gamma, &*xogyo.begin(), &inc, &*Bg.begin(), &inc));
