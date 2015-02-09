@@ -6,6 +6,7 @@
 #include <vector>
 #include <numeric>
 #include <string>
+#include <algorithm>
 
 //LAPACK Variables//
 extern char uplo;
