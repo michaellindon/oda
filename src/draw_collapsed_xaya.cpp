@@ -12,9 +12,11 @@ void draw_collapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std
 		for(std::vector<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=Rf_rnorm(0,1);
 		dtrsv_(&uplo, &transN, &unit_tri, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &*Z.begin(), &inc);
 		dgemv_(&transN , &na, &p_gamma, &sd, &*xag.begin(), &na, &*Z.begin(), &inc, &inputscale1, &*xaya.begin(), &inc);
-		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
+		//dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
+		dtpmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &*xaya.begin(), &inc);
 	}else{
 		for(size_t i=0; i!=xaya.size(); ++i) xaya[i]=sd*Z[i];
-		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
+		//dtrmv_(&uplo, &transT, &unit_tri, &na, &rxa[0], &na, &*xaya.begin(), &inc);
+		dtpmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &*xaya.begin(), &inc);
 	}
 };

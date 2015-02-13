@@ -7,6 +7,7 @@
 #include <numeric>
 #include <string>
 #include <algorithm>
+#include <iostream>
 
 //LAPACK Variables//
 extern char uplo;
@@ -23,10 +24,12 @@ extern double nunity;
 
 
 extern "C" {
+	void dtrttp_(char * UPLO, int * N, double * A, int * LDA, double * AP, int * INFO);
 	void dsyevx_(char * JOBZ, char * RANGE, char * UPLO, int * N, double * A, int * LDA, double * VL, double * VU, int * IL, int * IU, double * ABSTOL, int * M, double * W, double * Z, int * LDZ, double * WORK, int * LWORK, int * IWORK, int * IFAIL, int * INFO );
 	void dpotrf_(char *  UPLO,int * N,double * A,int * LDA,int * INFO );
 	void dpotrs_(char * UPLO, int * N, int * NRHS, double * A, int * LDA, double * B, int * LDB, int *  INFO);
-	void dtrmv_(char * UPLO, char * TRANS, char * DIAG, int * N,double *  A,int * LDA,double * X,int * INCX);
+	void dtrmv_(char * UPLO, char * TRANS, char * DIAG, int * N, double * A,int * LDA,double * X,int * INCX);
+	void dtpmv_(char * UPLO, char * TRANS, char * DIAG, int * N, double * AP, double * X, int * INCX);
 	void dtrsv_(char * UPLO, char * TRANS, char * DIAG, int * N, double * A, int * LDA, double * X, int * INCX);
 	void dgemv_(char * TRANS, int * M, int * N, double * ALPHA, double * A, int * LDA, double * X, int * INCX, double * BETA, double * Y, int * INCY);
 	void daxpy_(int * N, double * DA, double * DX, int * INCX, double * DY, int * INCY);
@@ -34,7 +37,7 @@ extern "C" {
 	double ddot_(int * N, double * DX, int * INCX, double * DY, int * INCY);
 }
 
-void chol_xa(std::vector<double> &xa, std::vector<double> &xoxo, std::vector<double> &d, int p);
+void chol_xa(std::vector<double> &xa, std::vector<double> &xaxa, std::vector<double> &xoxo, std::vector<double> &d, int p);
 
 double scale(std::vector<double> &yo, std::vector<double> &xo, int no, int p);
 
@@ -48,7 +51,7 @@ void betabinomial_probabilities(std::vector<double> &prob, std::vector<double> &
 
 void uniform_probabilities(std::vector<double> &prob, std::vector<double> &odds, std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &xoyo, const std::vector<double> &xaya,  const std::vector<double> &lam, const double phi);
 
-void draw_collapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &mu, double phi, std::vector<double> &Z, std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma);
+void draw_collapsed_xaya(std::vector<double> &xaya,  std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &mu, double phi, std::vector<double> &Z, std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma);
 
 void draw_uncollapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std::vector<double> &xag, std::vector<double> Bg,  double phi, std::vector<double> &Z, int na, int p, int p_gamma);
 

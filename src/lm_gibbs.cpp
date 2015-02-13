@@ -1,5 +1,4 @@
 #include "oda.h"
-#include <iostream>
 
 extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * B_rb, double * prob_rb)
 {
@@ -30,9 +29,10 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 	dgemm_( &transT, &transN, &p, &p, &no, &unity, &*xo.begin(), &no, &*xo.begin(), &no, &inputscale0, &*xoxo.begin(), &p );
 
 	//Construct Xa//
-	std::vector<double> xa(xoxo);
+	std::vector<double> xaxa(xoxo);
+	std::vector<double> xa(p*(p+1)/2); //Triangular Packed Storage
 	std::vector<double> d(p);
-	chol_xa(xa,xoxo,d,p);
+	chol_xa(xa,xaxa,xoxo,d,p);
 	
 
 	//Reserve Memory for Submatrices//

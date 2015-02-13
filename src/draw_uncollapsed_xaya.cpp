@@ -8,9 +8,11 @@ void draw_uncollapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, s
 	if(p_gamma!=0){
 		dgemv_(&transN , &na, &p_gamma, &unity, &*xag.begin(), &na, &*Bg.begin(), &inc, &inputscale0, &*xaya.begin(), &inc);
 		daxpy_(&p, &sd, &*Z.begin(), &inc, &*xaya.begin(), &inc);
-		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
+		//dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
+		dtpmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &*xaya.begin(), &inc);
 	}else{
 		for(size_t i=0; i!=xaya.size(); ++i) xaya[i]=sd*Z[i];
-		dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
+		//dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
+		dtpmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &*xaya.begin(), &inc);
 	}
 }
