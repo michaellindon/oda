@@ -1,6 +1,6 @@
 #include "oda.h"
 
-extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * B_rb, double * prob_rb)
+extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb)
 {
 	//MCMC Variables//
 	int burnin=*rburnin;
@@ -77,6 +77,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 	std::copy(B.begin(),B.end(),B_mcmc);
 	std::copy(prob.begin(),prob.end(),prob_mcmc);
 	std::copy(gamma.begin(),gamma.end(),gamma_mcmc);
+	std::copy(lam.begin(),lam.end(),lam_mcmc);
 	phi_mcmc[0]=phi;
 
 	//Run Gibbs Sampler//
@@ -137,6 +138,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 		std::copy(gamma.begin(),gamma.end(),(gamma_mcmc+p*t));
 		std::copy(prob.begin(),prob.end(),(prob_mcmc+p*t));
 		std::copy(B.begin(),B.end(),(B_mcmc+p*t));
+		std::copy(lam.begin(),lam.end(),(lam_mcmc+p*t));
 		phi_mcmc[t]=phi;
 
 		//Rao Blackwell//
