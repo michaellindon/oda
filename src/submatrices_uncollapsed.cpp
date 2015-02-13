@@ -10,7 +10,8 @@ void submatrices_uncollapsed(bool gamma_diff, const std::vector<double> B, std::
 			if(gamma[i]==1)
 			{
 				for(int j=0; j<no; ++j) xog.push_back(xo[i*no+j]);
-				for(int j=0; j<na; ++j) xag.push_back(xa[i*na+j]); 
+				for(int j=0; j<=i; ++j) xag.push_back(xa[i*na+j]); 
+				for(int j=i+1; j!=p; ++j) xag.push_back(0);
 			}
 		}
 	}

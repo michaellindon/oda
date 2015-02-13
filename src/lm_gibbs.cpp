@@ -1,6 +1,7 @@
 #include "oda.h"
+#include <iostream>
 
-extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxoxo, double * rd, double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * B_rb, double * prob_rb)
+extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * B_rb, double * prob_rb)
 {
 	//MCMC Variables//
 	int burnin=*rburnin;
@@ -12,27 +13,33 @@ extern "C" void lm_gibbs(double * ryo, double * rxo, double * rxa, double * rxox
 	int no=*rno;
 	int na=*rna;
 
-	//Create Model Matrices//
-	std::vector<double> d(rd,rd+p);
-	std::vector<double> xo(rxo, rxo+no*p);
-	std::vector<double> xa(rxa, rxa+na*p);
-	std::vector<double> xog; xog.reserve(no*p);
-	std::vector<double> xag; xag.reserve(na*p);
-	std::vector<double> xoxo(rxoxo,rxoxo+p*p);
-	std::vector<double> xogyo; xogyo.reserve(p);
-	std::vector<double> xogxog_Lamg; xogxog_Lamg.reserve(p*p);
-
 	//Phi Variables//
 	double b=1.0;
 	double phi=1.0;
 
 	//Yo Variables//
 	std::vector<double> yo(ryo, ryo+no); 
-	double yobar=std::accumulate(yo.begin(),yo.end(),0.0)/yo.size();
-	std::transform(yo.begin(),yo.end(),yo.begin(),bind2nd(std::minus<double>(),yobar));	
+	std::vector<double> xo(rxo, rxo+no*p);
+	double yobar=scale(yo,xo,no,p);
 	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
+
 	std::vector<double> xoyo(p);
 	dgemv_( &transT, &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*xoyo.begin(), &inc);
+
+	std::vector<double> xoxo(p*p);
+	dgemm_( &transT, &transN, &p, &p, &no, &unity, &*xo.begin(), &no, &*xo.begin(), &no, &inputscale0, &*xoxo.begin(), &p );
+
+	//Construct Xa//
+	std::vector<double> xa(xoxo);
+	std::vector<double> d(p);
+	chol_xa(xa,xoxo,d,p);
+	
+
+	//Reserve Memory for Submatrices//
+	std::vector<double> xog; xog.reserve(no*p);
+	std::vector<double> xogyo; xogyo.reserve(p);
+	std::vector<double> xogxog_Lamg; xogxog_Lamg.reserve(p*p);
+	std::vector<double> xag; xag.reserve(na*p);
 
 	//Ya Variables//
 	std::vector<double> mu(na);

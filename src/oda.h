@@ -21,17 +21,22 @@ extern double inputscale0;
 extern double unity;
 extern double nunity;
 
+
 extern "C" {
+	void dsyevx_(char * JOBZ, char * RANGE, char * UPLO, int * N, double * A, int * LDA, double * VL, double * VU, int * IL, int * IU, double * ABSTOL, int * M, double * W, double * Z, int * LDZ, double * WORK, int * LWORK, int * IWORK, int * IFAIL, int * INFO );
 	void dpotrf_(char *  UPLO,int * N,double * A,int * LDA,int * INFO );
 	void dpotrs_(char * UPLO, int * N, int * NRHS, double * A, int * LDA, double * B, int * LDB, int *  INFO);
 	void dtrmv_(char * UPLO, char * TRANS, char * DIAG, int * N,double *  A,int * LDA,double * X,int * INCX);
 	void dtrsv_(char * UPLO, char * TRANS, char * DIAG, int * N, double * A, int * LDA, double * X, int * INCX);
 	void dgemv_(char * TRANS, int * M, int * N, double * ALPHA, double * A, int * LDA, double * X, int * INCX, double * BETA, double * Y, int * INCY);
 	void daxpy_(int * N, double * DA, double * DX, int * INCX, double * DY, int * INCY);
+	void dgemm_(char * TRANSA, char * TRANSB, int * M, int * N, int * K, double * ALPHA, double * A, int *LDA, double * B, int * LDB, double * BETA, double * C, int * LDC );
 	double ddot_(int * N, double * DX, int * INCX, double * DY, int * INCY);
 }
 
+void chol_xa(std::vector<double> &xa, std::vector<double> &xoxo, std::vector<double> &d, int p);
 
+double scale(std::vector<double> &yo, std::vector<double> &xo, int no, int p);
 
 void submatrices_uncollapsed(bool gamma_diff, const std::vector<double> B, std::vector<double> &xog, std::vector<double> &xag,  std::vector<double> &lamg, std::vector<double> &Bg, const std::vector<int> &gamma,  const std::vector<double> &lam, const std::vector<double> &xo, const std::vector<double> &xa,  int p_gamma, double &b, int p, int no, int na);
 
