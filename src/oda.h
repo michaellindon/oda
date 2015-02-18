@@ -37,7 +37,7 @@ extern "C" {
 	double ddot_(int * N, double * DX, int * INCX, double * DY, int * INCY);
 }
 
-void chol_xa(std::vector<double> &xa, std::vector<double> &xaxa, std::vector<double> &xoxo, std::vector<double> &d, int p);
+void chol_xa(std::vector<double> &xa, std::vector<double> &xoxo, std::vector<double> &d, int p);
 
 double scale(std::vector<double> &yo, std::vector<double> &xo, int no, int p);
 
@@ -51,9 +51,9 @@ void betabinomial_probabilities(std::vector<double> &prob, std::vector<double> &
 
 void uniform_probabilities(std::vector<double> &prob, std::vector<double> &odds, std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &xoyo, const std::vector<double> &xaya,  const std::vector<double> &lam, const double phi);
 
-void draw_collapsed_xaya(std::vector<double> &xaya,  std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &mu, double phi, std::vector<double> &Z, std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma);
+void draw_collapsed_xaya(std::vector<double> &xaya,  std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &mu, double phi,  std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma);
 
-void draw_uncollapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std::vector<double> &xag, std::vector<double> Bg,  double phi, std::vector<double> &Z, int na, int p, int p_gamma);
+void draw_uncollapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std::vector<double> &xag, std::vector<double> Bg,  double phi,  int na, int p, int p_gamma);
 
 double draw_collapsed_phi( double &b, int p_gamma, const int no, const double yoyo, std::vector<double> &xogyo, std::vector<double> &Bg);
 

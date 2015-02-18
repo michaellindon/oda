@@ -1,7 +1,8 @@
 #include "oda.h"
 
-void chol_xa(std::vector<double> &xa, std::vector<double> &xaxa, std::vector<double> &xoxo, std::vector<double> &d, int p)
+void chol_xa(std::vector<double> &xa, std::vector<double> &xoxo, std::vector<double> &d, int p)
 {
+	std::vector<double> xaxa(xoxo);
 	char eigenvec='N';
 	char eigenrange='I';
 	double eigenprec=0.001;

@@ -29,10 +29,9 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 	dgemm_( &transT, &transN, &p, &p, &no, &unity, &*xo.begin(), &no, &*xo.begin(), &no, &inputscale0, &*xoxo.begin(), &p );
 
 	//Construct Xa//
-	std::vector<double> xaxa(xoxo);
 	std::vector<double> xa(p*(p+1)/2); //Triangular Packed Storage
 	std::vector<double> d(p);
-	chol_xa(xa,xaxa,xoxo,d,p);
+	chol_xa(xa,xoxo,d,p);
 	
 
 	//Reserve Memory for Submatrices//
