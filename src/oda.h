@@ -53,6 +53,8 @@ void uniform_probabilities(std::vector<double> &prob, std::vector<double> &odds,
 
 void draw_collapsed_xaya(std::vector<double> &xaya,  std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &mu, double phi,  std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma);
 
+void draw_uncollapsed_xoyo(const std::vector<double> &Z, std::vector<double> &xoyo, std::vector<double> &xo, std::vector<double> &xog, std::vector<double> Bg,  double phi, int no, int p, int p_gamma);
+
 void draw_uncollapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std::vector<double> &xag, std::vector<double> Bg,  double phi,  int na, int p, int p_gamma);
 
 double draw_collapsed_phi( double &b, int p_gamma, const int no, const double yoyo, std::vector<double> &xogyo, std::vector<double> &Bg);
