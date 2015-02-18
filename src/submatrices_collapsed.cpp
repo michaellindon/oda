@@ -17,7 +17,6 @@ void submatrices_collapsed(const bool gamma_diff, std::vector<double> &mu, std::
 		}
 	}
 
-	//	for(std::vector<double>::iterator it=xag.begin(); it!=xag.end(); ++it) std::cout << *it << std::endl;
 
 	xogxog_Lamg.resize(0);
 	lamg.resize(0);
