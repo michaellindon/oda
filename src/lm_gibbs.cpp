@@ -43,7 +43,6 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 
 	//Ya Variables//
 	std::vector<double> mu(na);
-	std::vector<double> Z; Z.reserve(na);
 	std::vector<double> xaya(p);
 
 	//Beta Variables//
@@ -88,7 +87,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 			case false:
 				if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,b,p,no,na);
 				phi=draw_uncollapsed_phi(p_gamma,no,yo,xog,Bg,lamg,yoyo);
-				draw_uncollapsed_xaya(xaya,xa,xag,Bg,phi,Z,na,p,p_gamma);
+				draw_uncollapsed_xaya(xaya,xa,xag,Bg,phi,na,p,p_gamma);
 				break;
 
 			case true:
@@ -102,7 +101,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 						break;
 				}
 				phi=draw_collapsed_phi(b,p_gamma,no, yoyo,xogyo,Bg);
-				draw_collapsed_xaya(xaya,xa,xag,mu,phi,Z,xogxog_Lamg,na,p,p_gamma);
+				draw_collapsed_xaya(xaya,xa,xag,mu,phi,xogxog_Lamg,na,p,p_gamma);
 
 		}
 

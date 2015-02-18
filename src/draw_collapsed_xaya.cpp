@@ -1,10 +1,11 @@
 #include "oda.h"
 
-void draw_collapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &mu, double phi, std::vector<double> &Z, std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma){
+void draw_collapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &mu, double phi, std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma){
 
 	double sd=sqrt(1/phi);
-	Z.resize(na);
+	std::vector<double> Z(na);
 	for(std::vector<double>::iterator it=Z.begin(); it!=Z.end(); ++it) *it=Rf_rnorm(0,1);
+
 	if(p_gamma!=0){
 		xaya=mu;
 		daxpy_(&p, &sd, &*Z.begin(), &inc, &*xaya.begin(), &inc);
