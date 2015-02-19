@@ -1,11 +1,10 @@
 #include "oda.h"
 
-extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb)
+extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha,  int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb)
 {
 	//MCMC Variables//
 	int burnin=*rburnin;
 	int niter=*rniter;
-	int collapsed=*rcollapsed;
 
 	//Dimensions//
 	int p=*rp;
@@ -37,7 +36,6 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 	std::vector<double> xag; xag.reserve(na*p);
 
 	//Ya Variables//
-	std::vector<double> mu(na);
 	std::vector<double> xaya(p);
 
 	//Beta Variables//
@@ -76,27 +74,15 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 	//Run Gibbs Sampler//
 	for (int t = 1; t < niter; ++t)
 	{
-		switch(collapsed)
-		{
-			case false:
-				if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
-				draw_uncollapsed_xoyo(Z,xoyo,xo,xog,Bg,phi,no,p,p_gamma);
-				draw_uncollapsed_xaya(xaya,xa,xag,Bg,phi,na,p,p_gamma);
-				break;
 
-			case true:
-				switch(scalemixture)
-				{
-					case false:
-				//		if(gamma_diff && p_gamma) submatrices_collapsed(gamma_diff,mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,b,yoyo,p,na);
-						break;
-					case true: 
-				//		if(p_gamma) submatrices_collapsed(gamma_diff,mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,b,yoyo,p,na);
-						break;
-				}
-				draw_collapsed_xaya(xaya,xa,xag,mu,phi,xogxog_Lamg,na,p,p_gamma);
+		//Form Submatrices//
+		if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
 
-		}
+		//Draw xoyo//
+		draw_xoyo(Z,xoyo,xo,xog,Bg,phi,no,p,p_gamma);
+
+		//Draw xaya//
+		draw_uncollapsed_xaya(xaya,xa,xag,Bg,phi,na,p,p_gamma);
 
 		//Compute Probabilities//
 		if(modelprior==1)
