@@ -1,6 +1,6 @@
 #include "oda.h" 
 
-void submatrices_collapsed(const bool gamma_diff, std::vector<double> &mu, std::vector<double> &xag, std::vector<double> &xogxog_Lamg, std::vector<double> &xogyo, std::vector<double> &lamg, std::vector<double> &Bg, const std::vector<int> &gamma, const std::vector<double> &xoyo, const std::vector<double> &lam, const std::vector<double> &xa, const std::vector<double> &xoxo,  int p_gamma,  int p, int na){
+void submatrices_collapsed(const bool gamma_diff,  std::vector<double> &xag, std::vector<double> &xogxog_Lamg, std::vector<double> &xogyo, std::vector<double> &lamg, std::vector<double> &Bg, const std::vector<int> &gamma, const std::vector<double> &xoyo, const std::vector<double> &lam, const std::vector<double> &xa, const std::vector<double> &xoxo,  int p_gamma,  int p, int na){
 
 	if(gamma_diff)
 	{
@@ -34,5 +34,4 @@ void submatrices_collapsed(const bool gamma_diff, std::vector<double> &mu, std::
 	for(int i=0; i<p_gamma; ++i) xogxog_Lamg[i*p_gamma+i]+=lamg[i];
 	dpotrf_( &uplo, &p_gamma, &*xogxog_Lamg.begin(), &p_gamma, &info); //xerbla handles info error
 	dpotrs_( &uplo, &p_gamma, &nrhs, &*xogxog_Lamg.begin(), &p_gamma, &*Bg.begin(), &p_gamma, &info);
-	dgemv_( &transN , &na, &p_gamma, &unity, &*xag.begin(), &na, &*Bg.begin(), &inc, &inputscale0, &*mu.begin(), &inc);
 }

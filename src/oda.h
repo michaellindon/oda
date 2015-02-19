@@ -43,7 +43,7 @@ double scale(std::vector<double> &yo, std::vector<double> &xo, int no, int p);
 
 void submatrices_uncollapsed(bool gamma_diff, const std::vector<double> B, std::vector<double> &xog, std::vector<double> &xag,  std::vector<double> &lamg, std::vector<double> &Bg, const std::vector<int> &gamma,  const std::vector<double> &lam, const std::vector<double> &xo, const std::vector<double> &xa,  int p_gamma, int p, int no, int na);
 
-void submatrices_collapsed(bool gamma_diff, std::vector<double> &mu, std::vector<double> &xag, std::vector<double> &xogxog_Lamg, std::vector<double> &xogyo, std::vector<double> &lamg, std::vector<double> &Bg, const std::vector<int> &gamma, const std::vector<double> &xoyo, const std::vector<double> &lam, const std::vector<double> &xa, const std::vector<double> &xoxo,  int p_gamma,  int p, int na);
+void submatrices_collapsed(bool gamma_diff, std::vector<double> &xag, std::vector<double> &xogxog_Lamg, std::vector<double> &xogyo, std::vector<double> &lamg, std::vector<double> &Bg, const std::vector<int> &gamma, const std::vector<double> &xoyo, const std::vector<double> &lam, const std::vector<double> &xa, const std::vector<double> &xoxo,  int p_gamma,  int p, int na);
 
 void bernoulli_probabilities(std::vector<double> &prob, std::vector<double> &odds, std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &xoyo, const std::vector<double> &xaya, const std::vector<double> &priorprob, const std::vector<double> &lam, const double phi);
 
@@ -51,7 +51,7 @@ void betabinomial_probabilities(std::vector<double> &prob, std::vector<double> &
 
 void uniform_probabilities(std::vector<double> &prob, std::vector<double> &odds, std::vector<double> &Bols, const std::vector<double> &d, const std::vector<double> &xoyo, const std::vector<double> &xaya,  const std::vector<double> &lam, const double phi);
 
-void draw_collapsed_xaya(std::vector<double> &xaya,  std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &mu, double phi,  std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma);
+void draw_collapsed_xaya(std::vector<double> &xaya,  std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &Bg,  double phi,  std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma);
 
 void draw_uncollapsed_xoyo(const std::vector<double> &Z, std::vector<double> &xoyo, std::vector<double> &xo, std::vector<double> &xog, std::vector<double> Bg,  double phi, int no, int p, int p_gamma);
 
