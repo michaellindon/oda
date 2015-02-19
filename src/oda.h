@@ -39,7 +39,9 @@ extern "C" {
 
 void chol_xa(std::vector<double> &xa, std::vector<double> &xoxo, std::vector<double> &d, int p);
 
-double scale(std::vector<double> &yo, std::vector<double> &xo, int no, int p);
+double scale_yo(std::vector<double> &yo);
+
+void scale_xo(std::vector<double> &xo, int no, int p);
 
 void submatrices_uncollapsed(bool gamma_diff, const std::vector<double> B, std::vector<double> &xog, std::vector<double> &xag,  std::vector<double> &lamg, std::vector<double> &Bg, const std::vector<int> &gamma,  const std::vector<double> &lam, const std::vector<double> &xo, const std::vector<double> &xa,  int p_gamma, int p, int no, int na);
 
@@ -53,7 +55,7 @@ void uniform_probabilities(std::vector<double> &prob, std::vector<double> &odds,
 
 void draw_collapsed_xaya(std::vector<double> &xaya,  std::vector<double> &xa, std::vector<double> &xag, std::vector<double> &Bg,  double phi,  std::vector<double> &xogxog_Lamg, int na, int p, int p_gamma);
 
-void draw_xoyo(const std::vector<double> &Z, std::vector<double> &xoyo, std::vector<double> &xo, std::vector<double> &xog, std::vector<double> Bg,  double phi, int no, int p, int p_gamma);
+void draw_xoyo(const std::vector<double> &Z, std::vector<double> &xoyo, double intercept, double &yobar, std::vector<double> &xo, std::vector<double> &xog, std::vector<double> Bg,  double phi, int no, int p, int p_gamma);
 
 void draw_uncollapsed_xaya(std::vector<double> &xaya, std::vector<double> &xa, std::vector<double> &xag, std::vector<double> Bg,  double phi,  int na, int p, int p_gamma);
 

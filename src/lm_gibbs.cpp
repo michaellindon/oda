@@ -17,9 +17,10 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 
 	//Yo Variables//
 	std::vector<double> yo(ryo, ryo+no); 
-	std::vector<double> xo(rxo, rxo+no*p);
-	double yobar=scale(yo,xo,no,p);
+	double yobar=scale_yo(yo);
 	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
+	std::vector<double> xo(rxo, rxo+no*p);
+	scale_xo(xo,no,p);
 
 	std::vector<double> xoyo(p);
 	dgemv_( &transT, &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*xoyo.begin(), &inc);
