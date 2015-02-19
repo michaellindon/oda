@@ -12,13 +12,14 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 	int na=*rna;
 
 	//Phi Variables//
-	double b=1.0;
 	double phi=1.0;
 
 	//Yo Variables//
 	std::vector<double> Z(rZ, rZ+no); 
 	std::vector<double> xo(rxo, rxo+no*p);
+	scale_xo(xo,no,p);
 	std::vector<double> xoyo(p);
+	double yobar=0;
 
 	std::vector<double> xoxo(p*p);
 	dgemm_( &transT, &transN, &p, &p, &no, &unity, &*xo.begin(), &no, &*xo.begin(), &no, &inputscale0, &*xoxo.begin(), &p );
@@ -50,7 +51,7 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 	std::vector<double> lamg; lamg.reserve(p); //vector instead of diagonal pxp matrix
 
 	//Gamma Variables//
-	std::vector<int> gamma(p,0);
+	std::vector<int> gamma(p,1);
 	int p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
 	bool gamma_diff=true;
 	int modelprior=*rmodelprior;
@@ -79,7 +80,7 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 		if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
 
 		//Draw xoyo//
-		draw_xoyo(Z,xoyo,xo,xog,Bg,phi,no,p,p_gamma);
+		draw_xoyo(Z,xoyo,yobar,xo,xog,Bg,phi,no,p,p_gamma);
 
 		//Draw xaya//
 		draw_uncollapsed_xaya(xaya,xa,xag,Bg,phi,na,p,p_gamma);
