@@ -13,7 +13,6 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 	int na=*rna;
 
 	//Phi Variables//
-	double b=1.0;
 	double phi=1.0;
 
 	//Yo Variables//
@@ -84,7 +83,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 		switch(collapsed)
 		{
 			case false:
-				if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,b,p,no,na);
+				if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
 				phi=draw_uncollapsed_phi(p_gamma,no,yo,xog,Bg,lamg,yoyo);
 				draw_uncollapsed_xaya(xaya,xa,xag,Bg,phi,na,p,p_gamma);
 				break;
@@ -93,13 +92,13 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 				switch(scalemixture)
 				{
 					case false:
-						if(gamma_diff && p_gamma) submatrices_collapsed(gamma_diff,mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,b,yoyo,p,na);
+						if(gamma_diff && p_gamma) submatrices_collapsed(gamma_diff,mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,p,na);
 						break;
 					case true: 
-						if(p_gamma) submatrices_collapsed(gamma_diff,mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,b,yoyo,p,na);
+						if(p_gamma) submatrices_collapsed(gamma_diff,mu,xag,xogxog_Lamg,xogyo,lamg,Bg,gamma,xoyo,lam,xa,xoxo,p_gamma,p,na);
 						break;
 				}
-				phi=draw_collapsed_phi(b,p_gamma,no, yoyo,xogyo,Bg);
+				phi=draw_collapsed_phi(p_gamma,no, yoyo,xogyo,Bg);
 				draw_collapsed_xaya(xaya,xa,xag,mu,phi,xogxog_Lamg,na,p,p_gamma);
 
 		}

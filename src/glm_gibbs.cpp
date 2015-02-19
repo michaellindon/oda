@@ -79,7 +79,7 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 		switch(collapsed)
 		{
 			case false:
-				if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,b,p,no,na);
+				if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
 				draw_uncollapsed_xoyo(Z,xoyo,xo,xog,Bg,phi,no,p,p_gamma);
 				draw_uncollapsed_xaya(xaya,xa,xag,Bg,phi,na,p,p_gamma);
 				break;
