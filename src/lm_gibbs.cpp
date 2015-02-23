@@ -1,6 +1,6 @@
 #include "oda.h"
 
-extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb)
+extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb, double * intercept_mcmc)
 {
 	//MCMC Variables//
 	int burnin=*rburnin;
@@ -21,6 +21,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
 	std::vector<double> xo(rxo, rxo+no*p);
 	scale_xo(xo,no,p);
+	std::copy(xo.begin(),xo.end(),rxo);
 
 	std::vector<double> xoyo(p);
 	dgemv_( &transT, &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*xoyo.begin(), &inc);
@@ -102,6 +103,9 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 				draw_collapsed_xaya(xaya,xa,xag,Bg,phi,xogxog_Lamg,na,p,p_gamma);
 
 		}
+
+		//Draw Intercept//
+		intercept_mcmc[t]=yobar+sqrt(1/(no*phi));
 
 		//Compute Probabilities//
 		if(modelprior==1)
