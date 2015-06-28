@@ -105,7 +105,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 		}
 
 		//Draw Intercept//
-		intercept_mcmc[t]=yobar+sqrt(1/(no*phi));
+		intercept_mcmc[t]=yobar+sqrt(1/(no*phi))*Rf_rnorm(0,1);
 
 		//Compute Probabilities//
 		if(modelprior==1)
