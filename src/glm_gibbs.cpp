@@ -1,6 +1,6 @@
 #include "oda.h"
 
-extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha,  int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb, double * intercept_mcmc)
+extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha,  int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb, double * intercept_mcmc, double * xo_scale)
 {
 	//MCMC Variables//
 	int burnin=*rburnin;
@@ -17,7 +17,7 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 	//Yo Variables//
 	std::vector<double> Z(rZ, rZ+no); 
 	std::vector<double> xo(rxo, rxo+no*p);
-	standardize_xo(xo,no,p);
+	standardize_xo(xo,xo_scale,no,p);
 	std::vector<double> xoyo(p);
 	double yobar=0;
 

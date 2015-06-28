@@ -1,6 +1,6 @@
 #include "oda.h"
 
-extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb, double * intercept_mcmc)
+extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha, int * rcollapsed, int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb, double * intercept_mcmc, double * xo_scale)
 {
 	//MCMC Variables//
 	int burnin=*rburnin;
@@ -20,7 +20,7 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 	double yobar=center_yo(yo);
 	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
 	std::vector<double> xo(rxo, rxo+no*p);
-	standardize_xo(xo,no,p);
+	standardize_xo(xo,xo_scale,no,p);
 	std::copy(xo.begin(),xo.end(),rxo);
 
 	std::vector<double> xoyo(p);
