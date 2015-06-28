@@ -1,6 +1,6 @@
 #include "oda.h"
 
-extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha,  int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb)
+extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rburnin, int * rniter, int * rscalemixture, double * ralpha,  int * rno, int * rna, int * rp, double * B_mcmc, double * prob_mcmc, int * gamma_mcmc, double * phi_mcmc, double * lam_mcmc, double * B_rb, double * prob_rb, double * intercept_mcmc)
 {
 	//MCMC Variables//
 	int burnin=*rburnin;
@@ -108,6 +108,8 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 		//Draw Beta//
 		draw_beta(gamma,B,Bols,d,lam,phi);
 
+		//Draw Intercept//
+		intercept_mcmc[t]=yobar+sqrt(1/(no*phi))*Rf_rnorm(0,1);
 
 		//Draw Lambda//
 		if(scalemixture) draw_lambda_t(lam,gamma,alpha,B,phi);
