@@ -17,10 +17,10 @@ extern "C" void lm_gibbs(double * ryo, double * rxo,  double * rlam, int * rmode
 
 	//Yo Variables//
 	std::vector<double> yo(ryo, ryo+no); 
-	double yobar=scale_yo(yo);
+	double yobar=center_yo(yo);
 	double yoyo=ddot_(&no, &*yo.begin(), &inc, &*yo.begin(), &inc);
 	std::vector<double> xo(rxo, rxo+no*p);
-	scale_xo(xo,no,p);
+	standardize_xo(xo,no,p);
 	std::copy(xo.begin(),xo.end(),rxo);
 
 	std::vector<double> xoyo(p);

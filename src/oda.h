@@ -39,9 +39,9 @@ extern "C" {
 
 void chol_xa(std::vector<double> &xa, std::vector<double> &xoxo, std::vector<double> &d, int p);
 
-double scale_yo(std::vector<double> &yo);
+double center_yo(std::vector<double> &yo);
 
-void scale_xo(std::vector<double> &xo, int no, int p);
+void standardize_xo(std::vector<double> &xo, int no, int p);
 
 void submatrices_uncollapsed(bool gamma_diff, const std::vector<double> B, std::vector<double> &xog, std::vector<double> &xag,  std::vector<double> &lamg, std::vector<double> &Bg, const std::vector<int> &gamma,  const std::vector<double> &lam, const std::vector<double> &xo, const std::vector<double> &xa,  int p_gamma, int p, int no, int na);
 

@@ -17,7 +17,7 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 	//Yo Variables//
 	std::vector<double> Z(rZ, rZ+no); 
 	std::vector<double> xo(rxo, rxo+no*p);
-	scale_xo(xo,no,p);
+	standardize_xo(xo,no,p);
 	std::vector<double> xoyo(p);
 	double yobar=0;
 

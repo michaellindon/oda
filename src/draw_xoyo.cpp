@@ -20,7 +20,7 @@ void draw_xoyo(const std::vector<double> &Z, std::vector<double> &xoyo, double &
 
 	}
 
-	yobar=scale_yo(yo);
+	yobar=center_yo(yo);
 
 	//Multiply by Xo'//
 	dgemv_( &transT, &no, &p, &unity, &*xo.begin(), &no, &*yo.begin(), &inc, &inputscale0, &*xoyo.begin(), &inc);

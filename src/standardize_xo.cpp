@@ -1,6 +1,6 @@
 #include "oda.h"
 
-void scale_xo(std::vector<double> &xo, int no, int p)
+void standardize_xo(std::vector<double> &xo, int no, int p)
 {
 	for(int c=0; c!=p; ++c)
 	{
