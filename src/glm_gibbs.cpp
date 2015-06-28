@@ -40,6 +40,7 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 	std::vector<double> xaya(p);
 
 	//Beta Variables//
+	double intercept=0;
 	std::vector<double> Bols(p);
 	std::vector<double> B(p,0.0);
 	std::vector<double> Bg; Bg.reserve(p);
@@ -80,7 +81,7 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 		if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
 
 		//Draw xoyo//
-		draw_xoyo(Z,xoyo,yobar,xo,xog,Bg,phi,no,p,p_gamma);
+		draw_xoyo(Z,xoyo,yobar,xo,xog,Bg,phi,no,p,p_gamma,intercept);
 
 		//Draw xaya//
 		draw_uncollapsed_xaya(xaya,xa,xag,Bg,phi,na,p,p_gamma);
@@ -109,13 +110,14 @@ extern "C" void glm_gibbs(double * rZ, double * rxo,  double * rlam, int * rmode
 		draw_beta(gamma,B,Bols,d,lam,phi);
 
 		//Draw Intercept//
-		intercept_mcmc[t]=yobar+sqrt(1/(no*phi))*Rf_rnorm(0,1);
+		intercept=yobar+sqrt(1/(no*phi))*Rf_rnorm(0,1);
 
 		//Draw Lambda//
 		if(scalemixture) draw_lambda_t(lam,gamma,alpha,B,phi);
 
 
 		//Store Draws//
+		intercept_mcmc[t]=intercept;
 		std::copy(gamma.begin(),gamma.end(),(gamma_mcmc+p*t));
 		std::copy(prob.begin(),prob.end(),(prob_mcmc+p*t));
 		std::copy(B.begin(),B.end(),(B_mcmc+p*t));
