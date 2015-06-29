@@ -11,11 +11,11 @@ void draw_xoyo(const std::vector<double> &Z, std::vector<double> &xoyo, double &
 
 	for (size_t i = 0; i < Z.size(); ++i)
 	{
+		double Fa=pnorm(-yo[i],0,1,1,0);
 		if(Z[i]==1){
-			double Fa=pnorm(-yo[i],0,1,1,0);
 			yo[i]+=qnorm(Fa+U[i]*(1-Fa),0,1,1,0);
 		}else{
-			yo[i]+=qnorm(U[i]*pnorm(-yo[i],0,1,1,0),0,1,1,0);
+			yo[i]+=qnorm(U[i]*Fa,0,1,1,0);
 		}
 
 	}
