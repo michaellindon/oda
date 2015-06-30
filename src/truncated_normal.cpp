@@ -1,23 +1,28 @@
 #include "oda.h"
 
-extern "C" double truncated_normal(double mu, double mu_minus, double var){
-	if(mu_minus<=mu)
+extern "C" void truncated_normal(double * result, double *mu, double *mu_minus, double *var){
+	GetRNGstate();
+	if(*mu_minus<=*mu)
 	{
 		double proposal;
 		do{
-			proposal=mu+sqrt(var)*Rf_rnorm(0,1);
-		}while(proposal<mu_minus);
-		return proposal;
+			proposal=*mu+sqrt(*var)*Rf_rnorm(0,1);
+		}while(proposal<*mu_minus);
+	//	return proposal;
+	*result=proposal;
 	}else{
-		double rate=0.5*(mu_minus+sqrt(mu_minus*mu_minus+4));
+		*mu_minus=(*mu_minus-*mu)/sqrt(*var);
+		double rate=0.5*(*mu_minus+sqrt(*mu_minus * *mu_minus+4));
 		double proposal,u,prob;
 		do{
-			proposal=mu_minus+Rf_rexp(rate);
+			proposal=*mu_minus+Rf_rexp(rate);
 			prob=exp(-0.5*(proposal-rate)*(proposal-rate));
 			u=Rf_runif(0,1);
 		}while(u>prob);
-		return(mu+sqrt(var)*proposal);
+	//	return(*mu+sqrt(*var)*proposal);
+		*result=*mu+sqrt(*var)*proposal;
 	}
+	PutRNGstate();
 }
 
 //References
