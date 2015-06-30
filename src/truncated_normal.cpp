@@ -11,6 +11,7 @@ extern "C" void truncated_normal(double * result, double *mu, double *mu_minus, 
 	//	return proposal;
 	*result=proposal;
 	}else{
+
 		*mu_minus=(*mu_minus-*mu)/sqrt(*var);
 		double rate=0.5*(*mu_minus+sqrt(*mu_minus * *mu_minus+4));
 		double proposal,u,prob;
