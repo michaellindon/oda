@@ -1,3 +1,6 @@
+#include <stack>
+#include <vector>
+#include <map>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -8,6 +11,12 @@ double log_posterior_density(int no,const Col<double>& lam, const Col<uword>& ga
 
 // [[Rcpp::export]]
 List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, NumericVector rd, NumericVector rlam, NumericVector rpriorprob, SEXP rselection, SEXP rmaxiter){
+
+	std::map<std::vector<int>, bool> visitedModels;
+	std::stack<std::vector<double> > stackB;
+	std::stack<std::vector<int> > stackgamma;
+	std::stack<double> stackphi;
+
 
 	//Define Variables//
 	int p=rxo.ncol();
@@ -65,21 +74,21 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, Numeri
 	//Create Initial Gammas//
 	//Forward Selection//
 	if(selection==0) gamma.fill(0);
-	
+
 	//Backward Selection
 	if(selection==1) gamma.fill(1);
 
 	//Randomize Selection//
 	if(selection==2){
-	double init_prob=R::runif(0,1);
-	for(int i=0; i<p; ++i){
-		if(R::runif(0,1)<0.5){
-		       	gamma(i)=1; //Note gamma is initialized at zero
-			B(i)=R::rnorm(0,1);
+		double init_prob=R::runif(0,1);
+		for(int i=0; i<p; ++i){
+			if(R::runif(0,1)<0.5){
+				gamma(i)=1; //Note gamma is initialized at zero
+				B(i)=R::rnorm(0,1);
+			}
 		}
 	}
-	}
-	
+
 	//Run EM Algorithm//
 	gamma_trace.col(0)=gamma;
 	prob_trace.col(0)=prob;
@@ -120,6 +129,24 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, Numeri
 			}
 		}
 
+		std::vector<int> gammastl(gamma.begin(),gamma.end());
+		if(visitedModels[gammastl]==true){
+			gamma=gamma_trace.col(t-1);
+			B=B%gamma;
+		}
+		visitedModels[gammastl]=true;
+
+		//Activates when there is a transition
+		if(sum(abs(gamma-gamma_trace.col(t-1)))!=0)
+		{
+			Col<double> Bprev=B_trace.col(t-1);
+			Col<uword> gammaprev=gamma_trace.col(t-1);
+			std::vector<int> gammaprevstl(gammaprev.begin(),gammaprev.end());
+			std::vector<double> Bprevstl(Bprev.begin(),Bprev.end());
+			stackB.push(Bprevstl);
+			stackgamma.push(gammaprevstl);
+		}
+
 		//Store Values//
 		a_trace(t)=a;
 		b_trace(t)=b;
@@ -132,6 +159,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, Numeri
 		t=t+1;
 	} while(deltaB>0.000000001 && t<maxiter);
 
+	std::cout << visitedModels.size() << std::endl;
 
 	//Resize Trace Matrices//
 	gamma_trace.resize(p,t);
@@ -175,3 +203,4 @@ double log_posterior_density(int no,const Col<double>& lam, const Col<uword>& ga
 	return(lpd);
 
 }
+
