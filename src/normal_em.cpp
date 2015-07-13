@@ -129,22 +129,24 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, Numeri
 			}
 		}
 
-		std::vector<int> gammastl(gamma.begin(),gamma.end());
-		if(visitedModels[gammastl]==true){
-			gamma=gamma_trace.col(t-1);
-			B=B%gamma;
-		}
-		visitedModels[gammastl]=true;
-
 		//Activates when there is a transition
 		if(sum(abs(gamma-gamma_trace.col(t-1)))!=0)
 		{
-			Col<double> Bprev=B_trace.col(t-1);
-			Col<uword> gammaprev=gamma_trace.col(t-1);
-			std::vector<int> gammaprevstl(gammaprev.begin(),gammaprev.end());
-			std::vector<double> Bprevstl(Bprev.begin(),Bprev.end());
-			stackB.push(Bprevstl);
-			stackgamma.push(gammaprevstl);
+			std::vector<int> gammastl(gamma.begin(),gamma.end());
+			//Activate when model has not been visited before
+			if(visitedModels.find(gammastl)==visitedModels.end()){
+				Col<double> Bprev=B_trace.col(t-1);
+				Col<uword> gammaprev=gamma_trace.col(t-1);
+				std::vector<int> gammaprevstl(gammaprev.begin(),gammaprev.end());
+				std::vector<double> Bprevstl(Bprev.begin(),Bprev.end());
+				stackB.push(Bprevstl);
+				stackgamma.push(gammaprevstl);
+				visitedModels[gammastl]=true;
+
+			}else{ //If gamma changes but model has already been visited, revert to old gamma
+			gamma=gamma_trace.col(t-1);
+			B=B%gamma;
+			}
 		}
 
 		//Store Values//
