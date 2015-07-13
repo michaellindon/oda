@@ -54,6 +54,7 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, Numeri
 
 	//Create Submatrices
 	Col<uword> gamma(p,fill::zeros);
+	Col<uword> gammaprop(p,fill::zeros);
 	Col<uword> inc_indices(p,fill::ones);
 	Mat<double> xog(no,p);
 	Mat<double> xaxag(na,p);
@@ -95,71 +96,83 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, Numeri
 	B_trace.col(0)=B;
 	int t=1;
 	do{
-		//Form Submatrices
-		inc_indices=find(gamma);
-		Bg=B.elem(inc_indices);
-		Lamg=Lam.submat(inc_indices,inc_indices);
-		xaxag=xaxa.cols(inc_indices);
-		xog=xo.cols(inc_indices);
-
-		//E-Step Phi//
-		b=(double)0.5*dot(yo-xog*Bg,yo-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
-		a=(double)0.5*(no+sum(gamma)-1);
-		phi=a/b;
-		lpd_trace(t-1)= log_posterior_density( no,lam, gamma, priorodds, a,  b, p);
-
-		//E-Step Ya//
-		xaya=xaxag*Bg;
-
-		//M-Step (Beta,Gamma)//
-		for (int i = 0; i < p; ++i)
+		if(t!=1)
 		{
-			Bols(i)=(1/d(i))*(xoyo(i)+xaya(i));
-			odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
-			prob(i)=odds(i)/(1+odds(i));
-			//if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
-
-			//Choose Median Probability Model//
-			if(priorprob(i)*sqrt(lam(i)/(2*M_PI))*trunc_exp(0.5*Rf_digamma(a)-0.5*log(b))*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i))>(1-priorprob(i))){
-				gamma(i)=1;
-				B(i)=dli(i)*d(i)*Bols(i);
-			}else{
-				gamma(i)=0;
-				B(i)=0;
-			}
+			std::copy(stackB.top().begin(),stackB.top().end(),B.begin());
+			stackB.pop();
+			std::copy(stackgamma.top().begin(),stackgamma.top().end(),gamma.begin());
+			stackgamma.pop();
+			phi=stackphi.top();
+			stackphi.pop();
 		}
+		do{
+			//Form Submatrices
+			inc_indices=find(gamma);
+			Bg=B.elem(inc_indices);
+			Lamg=Lam.submat(inc_indices,inc_indices);
+			xaxag=xaxa.cols(inc_indices);
+			xog=xo.cols(inc_indices);
 
-		//Activates when there is a transition
-		if(sum(abs(gamma-gamma_trace.col(t-1)))!=0)
-		{
-			std::vector<int> gammastl(gamma.begin(),gamma.end());
-			//Activate when model has not been visited before
-			if(visitedModels.find(gammastl)==visitedModels.end()){
-				Col<double> Bprev=B_trace.col(t-1);
-				Col<uword> gammaprev=gamma_trace.col(t-1);
-				std::vector<int> gammaprevstl(gammaprev.begin(),gammaprev.end());
-				std::vector<double> Bprevstl(Bprev.begin(),Bprev.end());
-				stackB.push(Bprevstl);
-				stackgamma.push(gammaprevstl);
-				visitedModels[gammastl]=true;
+			//E-Step Phi//
+			b=(double)0.5*dot(yo-xog*Bg,yo-xog*Bg)+0.5*dot(Bg,Lamg*Bg);
+			a=(double)0.5*(no+sum(gamma)-1);
+			phi=a/b;
+			lpd_trace(t-1)= log_posterior_density( no,lam, gamma, priorodds, a,  b, p);
 
-			}else{ //If gamma changes but model has already been visited, revert to old gamma
-			gamma=gamma_trace.col(t-1);
-			B=B%gamma;
+			//E-Step Ya//
+			xaya=xaxag*Bg;
+
+			//M-Step (Beta,Gamma)//
+			for (int i = 0; i < p; ++i)
+			{
+				Bols(i)=(1/d(i))*(xoyo(i)+xaya(i));
+				odds(i)=priorodds(i)*ldl(i)*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i));
+				prob(i)=odds(i)/(1+odds(i));
+				//if(prob(i)!=prob(i)) prob(i)=1;	 //Catch NaN
+
+				//Choose Median Probability Model//
+				if(priorprob(i)*sqrt(lam(i)/(2*M_PI))*trunc_exp(0.5*Rf_digamma(a)-0.5*log(b))*trunc_exp(0.5*phi*dli(i)*d(i)*d(i)*Bols(i)*Bols(i))>(1-priorprob(i))){
+					gammaprop(i)=1;
+					B(i)=dli(i)*d(i)*Bols(i);
+				}else{
+					gammaprop(i)=0;
+					B(i)=0;
+				}
 			}
-		}
 
-		//Store Values//
-		a_trace(t)=a;
-		b_trace(t)=b;
-		gamma_trace.col(t)=gamma;
-		B_trace.col(t)=B;
-		prob_trace.col(t)=prob;
+			//Activates when there is a transition
+			if(sum(abs(gammaprop-gamma))!=0)
+			{
+				std::vector<int> gammastl(gammaprop.begin(),gammaprop.end());
+				//Activate when model has not been visited before
+				if(visitedModels.find(gammastl)==visitedModels.end()){
+					Col<double> Bprev=B_trace.col(t-1);
+					Col<uword> gammaprev=gamma_trace.col(t-1);
+					std::vector<int> gammaprevstl(gammaprev.begin(),gammaprev.end());
+					std::vector<double> Bprevstl(Bprev.begin(),Bprev.end());
+					stackB.push(Bprevstl);
+					stackgamma.push(gammaprevstl);
+					stackphi.push(phi);
+					visitedModels[gammastl]=true;
+					gamma=gammaprop;
+				}else{ //If gamma changes but model has already been visited, revert to old gamma
+					B=B%gamma;
+				}
+			}
 
-		deltaP=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
-		deltaB=dot(B_trace.col(t)-B_trace.col(t-1),B_trace.col(t)-B_trace.col(t-1));
-		t=t+1;
-	} while(deltaB>0.000000001 && t<maxiter);
+			//Store Values//
+			a_trace(t)=a;
+			b_trace(t)=b;
+			gamma_trace.col(t)=gamma;
+			B_trace.col(t)=B;
+			prob_trace.col(t)=prob;
+
+			deltaP=dot(prob_trace.col(t)-prob_trace.col(t-1),prob_trace.col(t)-prob_trace.col(t-1));
+			deltaB=dot(B_trace.col(t)-B_trace.col(t-1),B_trace.col(t)-B_trace.col(t-1));
+			t=t+1;
+		} while(deltaB>0.000000001 && t<maxiter);
+//		std::cout << find(gamma) << std::endl;
+	} while(stackB.size()!=0 && t<maxiter);
 
 	std::cout << visitedModels.size() << std::endl;
 
@@ -173,8 +186,8 @@ List normal_em(NumericVector ryo, NumericMatrix rxo, NumericMatrix rxaxa, Numeri
 
 	//Report Top Model//
 	Col<uword> top_model=find(gamma)+1;
-	cout << "Top Model Predictors" << endl;
-	cout << top_model << endl;
+	//	cout << "Top Model Predictors" << endl;
+	//	cout << top_model << endl;
 
 	return Rcpp::List::create(
 			Rcpp::Named("top_model")=top_model,
