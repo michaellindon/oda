@@ -1,7 +1,7 @@
 #include "oda.h"
 
 
-double log_posterior_density(int p, int p_gamma, std::vector<double>& yo, std::vector<double>& xog, std::vector<double>& Bg, std::vector<double>& lamg, std::vector<int>& gamma, std::vector<double>& priorprob, double yoyo, double phi);
+double log_posterior_density(int p, int p_gamma, std::vector<double>& yo, std::vector<double>& xo, std::vector<double>& B, std::vector<double>& lam, std::vector<int>& gamma, std::vector<double>& priorprob, double yoyo, double phi);
 
 extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rmaxniter, int * rscalemixture, double * ralpha,  int * rno, int * rna, int * rp, double * B_trace, double * prob_trace, int * gamma_trace, double * phi_trace, double * lam_trace, double * lpd_trace, double * xo_scale)
 {
@@ -90,10 +90,9 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 	std::copy(lam.begin(),lam.end(),lam_trace);
 	phi_trace[0]=phi;
 
-	//Run Gibbs Sampler//
+	//Run EM Algorithm//
 	for (int t = 1; t < niter; ++t)
 	{
-		//COMPUTATION OF PHI IS CORRECT GIVEN INPUTS//
 		if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
 		if(p_gamma){
 			a=0.5*(no+p_gamma-3);
@@ -106,9 +105,7 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 			b=0.5*yoyo;
 		}
 		phi=a/b;
-		//COMPUTATION OF PHI IS CORRECT GIVEN INPUTS//
 
-		//COMPUTATION OF XAYA IS CORRECT GIVEN INPUTS//
 		if(p_gamma!=0){
 			dgemv_(&transN , &na, &p_gamma, &unity, &*xag.begin(), &na, &*Bg.begin(), &inc, &inputscale0, &*xaya.begin(), &inc);
 			//dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
@@ -117,14 +114,11 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 			for(size_t i=0; i!=xaya.size(); ++i) xaya[i]=0;
 			//dtrmv_(&uplo, &transT, &unit_tri, &na, &*xa.begin(), &na, &*xaya.begin(), &inc);
 		}
-		//COMPUTATION OF XAYA IS CORRECT GIVEN INPUTS//
 
 		//Compute Probabilities//
 		if(modelprior==1)
 		{
-			//COMPUTATION OF BERNOULLI PROBABILITIES CORRECT GIVEN INPUTS//
 			bernoulli_probabilities(prob,odds,Bols,d,xoyo,xaya,priorprob,lam,phi);
-			//COMPUTATION OF BERNOULLI PROBABILITIES CORRECT GIVEN INPUTS//
 		}else if(modelprior==2)
 		{
 			betabinomial_probabilities(prob,odds,Bols,d,xoyo,xaya,theta,lam,phi);
@@ -133,12 +127,8 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 			uniform_probabilities(prob,odds,Bols,d,xoyo,xaya,lam,phi);
 		}
 
-		double before=log_posterior_density(p, p_gamma,yo, xog, Bg,lamg,gamma,priorprob,yoyo, phi);
-		//Something here wrong
 		for (int i = 0; i < p; ++i)
 		{
-		//		if(priorprob[i]*sqrt(lam[i]/(2*M_PI))*exp(0.5*Rf_digamma(a)-0.5*log(b))*exp(0.5*phi*(1/(d[i]+lam[i]))*d[i]*d[i]*Bols[i]*Bols[i])>(1-priorprob[i])){
-			std::cout << prob[i]*sqrt(phi*(lam[i]+d[i])/(2*M_PI)) << std::endl;
 			if(prob[i]*sqrt(phi*(lam[i]+d[i])/(2*M_PI))>(1-prob[i])){
 				gamma[i]=1;
 			}else{
@@ -156,22 +146,16 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 				B[i]=0;
 			}
 		}
-		double after=log_posterior_density(p, p_gamma,yo, xog, Bg,lamg,gamma,priorprob,yoyo, phi);
-		if(before>after) std::cout << "death" <<std::endl;
-		if(before>after) break;
+		//
 		//Draw Theta//
 //		if(modelprior==2) theta=Rf_rbeta(beta1+p_gamma,p-p_gamma+beta2);
-
-
-
 
 		//Draw Lambda//
 //		if(scalemixture) draw_lambda_t(lam,gamma,alpha,B,phi);
 
 
 		//Store Draws//
-
-		lpd_trace[t]=log_posterior_density(p, p_gamma,yo, xog, Bg,lamg,gamma,priorprob,yoyo, phi);
+		lpd_trace[t]=log_posterior_density(p, p_gamma,yo, xo, B,lam,gamma,priorprob,yoyo, phi);
 		std::copy(gamma.begin(),gamma.end(),(gamma_trace+p*t));
 		std::copy(prob.begin(),prob.end(),(prob_trace+p*t));
 		std::copy(B.begin(),B.end(),(B_trace+p*t));
@@ -186,16 +170,16 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 }
 
 
-double log_posterior_density(int p, int p_gamma, std::vector<double>& yo, std::vector<double>& xog, std::vector<double>& Bg, std::vector<double>& lamg, std::vector<int>& gamma, std::vector<double>& priorprob, double yoyo, double phi){
+double log_posterior_density(int p, int p_gamma, std::vector<double>& yo, std::vector<double>& xo, std::vector<double>& B, std::vector<double>& lam, std::vector<int>& gamma, std::vector<double>& priorprob, double yoyo, double phi){
 	double a,b;
 	int no=yo.size();
 
 	if(p_gamma){
 		a=0.5*(no+p_gamma-3);
 		std::vector<double> residual=yo;
-		dgemv_(&transN , &no, &p_gamma, &nunity, &*xog.begin(), &no, &*Bg.begin(), &inc, &inputscale1, &*residual.begin(), &inc);
+		dgemv_(&transN , &no, &p, &nunity, &*xo.begin(), &no, &*B.begin(), &inc, &inputscale1, &*residual.begin(), &inc);
 		b=0.5*ddot_(&no, &*residual.begin(), &inc, &*residual.begin(), &inc);
-		for(size_t i=0; i!=Bg.size(); ++i) b+=0.5*Bg[i]*Bg[i]*lamg[i]; 
+		for(size_t i=0; i!=B.size(); ++i) b+=0.5*B[i]*B[i]*lam[i]; 
 	}else{
 		a=0.5*(no-3);
 		b=0.5*yoyo;
