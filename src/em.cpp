@@ -3,10 +3,11 @@
 
 double log_posterior_density(int p, int p_gamma, std::vector<double>& yo, std::vector<double>& xo, std::vector<double>& B, std::vector<double>& lam, std::vector<int>& gamma, std::vector<double>& priorprob, double yoyo, double phi);
 
-extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rmaxniter, int * rscalemixture, double * ralpha,  int * rno, int * rna, int * rp, double * B_trace, double * prob_trace, int * gamma_trace, double * phi_trace, double * lam_trace, double * lpd_trace, double * xo_scale)
+extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rmaxniter, int * rscalemixture, double * ralpha,  int * rno, int * rna, int * rp, double * B_trace, double * prob_trace, int * gamma_trace, double * phi_trace, double * lam_trace, double * lpd_trace, double * xo_scale, double * rtol)
 {
 	GetRNGstate();
 	//MCMC Variables//
+	double tol=*rtol;
 	int niter=*rmaxniter;
 
 	//Dimensions//
@@ -91,7 +92,8 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 	phi_trace[0]=phi;
 
 	//Run EM Algorithm//
-	for (int t = 1; t < niter; ++t)
+	int t=1;
+	do
 	{
 		if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
 		if(p_gamma){
@@ -164,8 +166,8 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 
 		//Has Gamma Changed?//
 		gamma_diff=gamma_change(gamma_trace,t,p);
-
-	}
+		t++;
+	}while (t<niter && ((lpd_trace[t-1]-lpd_trace[t-2])*(lpd_trace[t-1]-lpd_trace[t-2]))>tol);
 	PutRNGstate();
 }
 
