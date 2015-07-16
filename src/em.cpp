@@ -1,7 +1,7 @@
 #include "oda.h"
 
 
-double log_posterior_density(int p, int p_gamma, std::vector<double>& yo, std::vector<double>& xo, std::vector<double>& B, std::vector<double>& lam, std::vector<int>& gamma, std::vector<double>& priorprob, double yoyo, double phi);
+double log_posterior_density(std::vector<int>& gamma, std::vector<double>& priorprob, double phi, double a, double b);
 
 extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior, double * rpriorprob, double * rbeta1, double * rbeta2, int * rmaxniter, int * rscalemixture, double * ralpha,  int * rno, int * rna, int * rp, double * B_trace, double * prob_trace, int * gamma_trace, double * phi_trace, double * lam_trace, double * lpd_trace, double * xo_scale, double * rtol)
 {
@@ -106,6 +106,7 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 			a=0.5*(no-3);
 			b=0.5*yoyo;
 		}
+		lpd_trace[t-1]=log_posterior_density(gamma,priorprob,phi,a,b);
 		phi=a/b;
 
 		if(p_gamma!=0){
@@ -157,7 +158,6 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 
 
 		//Store Draws//
-		lpd_trace[t]=log_posterior_density(p, p_gamma,yo, xo, B,lam,gamma,priorprob,yoyo, phi);
 		std::copy(gamma.begin(),gamma.end(),(gamma_trace+p*t));
 		std::copy(prob.begin(),prob.end(),(prob_trace+p*t));
 		std::copy(B.begin(),B.end(),(B_trace+p*t));
@@ -172,23 +172,9 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 }
 
 
-double log_posterior_density(int p, int p_gamma, std::vector<double>& yo, std::vector<double>& xo, std::vector<double>& B, std::vector<double>& lam, std::vector<int>& gamma, std::vector<double>& priorprob, double yoyo, double phi){
-	double a,b;
-	int no=yo.size();
-
-	if(p_gamma){
-		a=0.5*(no+p_gamma-3);
-		std::vector<double> residual=yo;
-		dgemv_(&transN , &no, &p, &nunity, &*xo.begin(), &no, &*B.begin(), &inc, &inputscale1, &*residual.begin(), &inc);
-		b=0.5*ddot_(&no, &*residual.begin(), &inc, &*residual.begin(), &inc);
-		for(size_t i=0; i!=B.size(); ++i) b+=0.5*B[i]*B[i]*lam[i]; 
-	}else{
-		a=0.5*(no-3);
-		b=0.5*yoyo;
-	}
+double log_posterior_density(std::vector<int>& gamma, std::vector<double>& priorprob, double phi, double a, double b){
 	int sum=0;
-
-	for (int i = 0; i < p; ++i){
+	for (size_t i = 0; i < gamma.size(); ++i){
 		sum+=gamma[i]*(log(priorprob[i])-log(1-priorprob[i]));
 	}
 
