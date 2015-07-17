@@ -10,6 +10,12 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 	double tol=*rtol;
 	int niter=*rmaxniter;
 
+	//Stack
+	std::map<std::vector<int>, bool> visitedModels;
+	std::stack<std::vector<double> > stackB;
+	std::stack<std::vector<int> > stackgamma;
+	std::stack<double> stackphi;
+
 	//Dimensions//
 	int p=*rp;
 	int no=*rno;
@@ -65,6 +71,7 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 
 	//Gamma Variables//
 	std::vector<int> gamma(p,0);
+	std::vector<int> gammaProp(p,0);
 	for(int i=0; i<p; ++i){
 		if(Rf_runif(0,1)<0.5){
 			gamma[i]=1; //Note gamma is initialized at zero
@@ -93,6 +100,25 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 
 	//Run EM Algorithm//
 	int t=1;
+	do{
+		if(t!=1 && stackB.size()!=0)
+		{
+			std::copy(stackB.top().begin(),stackB.top().end(),B.begin());
+			stackB.pop();
+			std::copy(stackgamma.top().begin(),stackgamma.top().end(),gamma.begin());
+			stackgamma.pop();
+			phi=stackphi.top();
+			stackphi.pop();
+		p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
+		}else{
+			std::cout << "Refresh" << std::endl;
+		for(int i=0; i<p; ++i){
+			if(Rf_runif(0,1)<0.5){
+				gamma[i]=1; //Note gamma is initialized at zero
+				B[i]=Rf_rnorm(0,1);
+			}
+		}
+		} 
 	do
 	{
 		if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
@@ -133,11 +159,21 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 		for (int i = 0; i < p; ++i)
 		{
 			if(prob[i]*sqrt(phi*(lam[i]+d[i])/(2*M_PI))>(1-prob[i])){
-				gamma[i]=1;
+				gammaProp[i]=1;
 			}else{
-				gamma[i]=0;
+				gammaProp[i]=0;
 			}
 		}
+
+		if(gamma_change(gammaProp,gamma)){
+				if(visitedModels.find(gammaProp)==visitedModels.end()){
+					stackB.push(B);
+					stackgamma.push(gamma);
+					stackphi.push(phi);
+					visitedModels[gammaProp]=true;
+					gamma=gammaProp;
+				}
+				}
 		p_gamma=std::accumulate(gamma.begin(),gamma.end(),0);
 
 
@@ -167,8 +203,10 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 		//Has Gamma Changed?//
 		gamma_diff=gamma_change(gamma_trace,t,p);
 		t++;
-	}while (t<niter && ((lpd_trace[t-1]-lpd_trace[t-2])*(lpd_trace[t-1]-lpd_trace[t-2]))>tol);
+	}while (t<niter && (((lpd_trace[t-2]-lpd_trace[t-3])*(lpd_trace[t-2]-lpd_trace[t-3]))>tol));
+	} while( t<niter);
 	PutRNGstate();
+	std::cout << "Models Visited: " << visitedModels.size() << std::endl;
 }
 
 
