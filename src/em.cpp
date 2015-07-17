@@ -12,8 +12,12 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 
 	//Stack
 	std::map<std::vector<int>, bool> visitedModels;
+	std::map<std::vector<int>, double> models;
 	std::stack<std::vector<double> > stackB;
 	std::stack<std::vector<int> > stackgamma;
+	int trigger=0;
+	double shift;
+	double normalize=0;
 	std::stack<double> stackphi;
 
 	//Dimensions//
@@ -38,6 +42,8 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 
 	std::vector<double> xoxo(p*p);
 	dgemm_( &transT, &transN, &p, &p, &no, &unity, &*xo.begin(), &no, &*xo.begin(), &no, &inputscale0, &*xoxo.begin(), &p );
+        std::vector<double> xogxog;
+	xogxog.reserve(p*p);
 
 	//Construct Xa//
 	std::vector<double> xa(p*(p+1)/2); //Triangular Packed Storage
@@ -70,7 +76,6 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 	//Reserve Memory for Submatrices//
 	std::vector<double> xog; xog.reserve(no*p);
 	std::vector<double> xogyo; xogyo.reserve(p);
-	std::vector<double> xogxog_Lamg; xogxog_Lamg.reserve(p*p);
 	std::vector<double> xag; xag.reserve(na*p);
 
 	//Ya Variables//
@@ -105,6 +110,7 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 
 	//Probability Variables//
 	std::vector<double> prob(p);
+	std::vector<double> pip(p,0.0);
 	std::vector<double> odds(p);
 	std::vector<double> priorprob(rpriorprob,rpriorprob+p);
 
@@ -120,6 +126,8 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 	std::copy(lam.begin(),lam.end(),lam_trace);
 	phi_trace[0]=phi;
 
+	std::fill(gamma.begin(),gamma.end(),0);
+	gamma[0]=gamma[1]=gamma[2]=1;
 	//Run EM Algorithm//
 	int t=1;
 	do{
@@ -187,6 +195,8 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 					gammaProp[i]=0;
 				}
 			}
+	std::fill(gammaProp.begin(),gammaProp.end(),0);
+	gammaProp[0]=gammaProp[1]=gammaProp[2]=1;
 
 			if(gamma_change(gammaProp,gamma)){
 				if(visitedModels.find(gammaProp)==visitedModels.end()){
@@ -218,7 +228,7 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 
 			//Store Draws//
 			std::copy(gamma.begin(),gamma.end(),(gamma_trace+p*t));
-			std::copy(prob.begin(),prob.end(),(prob_trace+p*t));
+			std::copy(pip.begin(),pip.end(),(prob_trace+p*t));
 			std::copy(B.begin(),B.end(),(B_trace+p*t));
 			std::copy(lam.begin(),lam.end(),(lam_trace+p*t));
 			phi_trace[t]=phi;
@@ -227,6 +237,70 @@ extern "C" void em(double * ryo, double * rxo,  double * rlam, int * rmodelprior
 			gamma_diff=gamma_change(gamma_trace,t,p);
 			t++;
 		}while (t<niter && (((lpd_trace[t-2]-lpd_trace[t-3])*(lpd_trace[t-2]-lpd_trace[t-3]))>tol));
+
+
+		//Compute Model Probability//
+		if(p_gamma) submatrices_uncollapsed(gamma_diff,B,xog,xag,lamg,Bg,gamma,lam,xo,xa,p_gamma,p,no,na);
+		if(p_gamma){
+			a=0.5*(no+p_gamma-3);
+			std::vector<double> residual=yo;
+			dgemv_(&transN , &no, &p_gamma, &nunity, &*xog.begin(), &no, &*Bg.begin(), &inc, &inputscale1, &*residual.begin(), &inc);
+			b=0.5*ddot_(&no, &*residual.begin(), &inc, &*residual.begin(), &inc);
+		}else{
+			a=0.5*(no-3);
+			b=0.5*yoyo;
+		}
+
+		int sum=0;
+		for (size_t i = 0; i < gamma.size(); ++i){
+			sum+=gamma[i]*(log(priorprob[i])-log(1-priorprob[i]));
+		}
+
+		xogxog.resize(p_gamma*p_gamma);
+		dgemm_( &transT, &transN, &p_gamma, &p_gamma, &no, &unity, &*xog.begin(), &no, &*xog.begin(), &no, &inputscale0, &*xogxog.begin(), &p_gamma );
+
+		double det1=0;
+		for (size_t i = 0; i < lamg.size(); ++i){
+			det1+=log(lamg[i]);
+		}
+		for (size_t i = 0; i < p_gamma; ++i){
+			xogxog[p_gamma*i+i]+=lamg[i];
+		}
+
+		dpotrf_( &uplo, &p_gamma, &*xogxog.begin(), &p_gamma, &info); //xerbla handles info error
+
+		double det2=0;
+		for (size_t i = 0; i < p_gamma; ++i){
+			det2+=log(xogxog[p_gamma*i+i]);
+		}
+		det2=det2*2;
+
+
+		a=0.5*(no-1);
+		if(trigger==0)	shift=(sum - a*log(b)+0.5*det1-0.5*det2) ;
+		trigger=1;
+		models[gamma]=exp(sum - a*log(b)+0.5*det1-0.5*det2-shift);
+
+		for(size_t i=0; i<pip.size(); ++i)
+		{
+			if(gamma[i]==1){
+			pip[i]=(pip[i]*normalize + models[gamma])/(normalize+models[gamma]);
+			}else{
+			pip[i]=(pip[i]*normalize)/(normalize+models[gamma]);
+			}
+		}
+		normalize+=models[gamma];
+		//Compute Model Probability//
+		std::cout << sum - a*log(b)+0.5*det1-0.5*det2 << std::endl;
+		std::cout << "sum: " <<  sum << std::endl;
+		std::cout << "b: " <<  b << std::endl;
+		std::cout << "alogb " <<  a*log(b)<< std::endl;
+		
+		std::cout << "det1 " << 0.5*det1 << std::endl;
+		std::cout << "det2 " << 0.5*det2 << std::endl;
+		
+
+
 	} while( t<niter);
 	PutRNGstate();
 	std::cout << "Models Visited: " << visitedModels.size() << std::endl;
